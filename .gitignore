@@ -1,3 +1,6 @@
+# Secrets & Local Environment
+.env
+
 # Temporary Uploads & SQLite DB binaries
 uploads/temp/*
 !uploads/temp/.gitkeep

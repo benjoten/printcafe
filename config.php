@@ -9,14 +9,34 @@ ini_set('log_errors', '1');
 // Set timezone
 date_default_timezone_set('Asia/Kolkata');
 
+// Load .env file if present
+$env_path = __DIR__ . '/.env';
+if (file_exists($env_path)) {
+    $lines = file($env_path, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+    foreach ($lines as $line) {
+        $line = trim($line);
+        if ($line === '' || strpos($line, '#') === 0) continue;
+        if (strpos($line, '=') !== false) {
+            list($name, $value) = explode('=', $line, 2);
+            $name = trim($name);
+            $value = trim($value, " \t\n\r\0\x0B\"'");
+            if (!getenv($name)) {
+                putenv("{$name}={$value}");
+                $_ENV[$name] = $value;
+                $_SERVER[$name] = $value;
+            }
+        }
+    }
+}
+
 // Base Paths
 define('BASE_DIR', __DIR__);
 define('UPLOAD_DIR', BASE_DIR . DIRECTORY_SEPARATOR . 'uploads' . DIRECTORY_SEPARATOR . 'temp');
 define('DB_DIR', BASE_DIR . DIRECTORY_SEPARATOR . 'database');
 define('DB_PATH', DB_DIR . DIRECTORY_SEPARATOR . 'printcafe.sqlite');
 
-// Database Selection: Read environment variables if available (e.g. on Render/Cloud), or fallback to constants
-$db_type_env = getenv('DB_TYPE') ?: 'sqlite'; // Default to 'sqlite' locally, set to 'mysql' or 'sqlite' in env
+// Database Selection: Read environment variables if available (e.g. on Render/Cloud or .env), or fallback to constants
+$db_type_env = getenv('DB_TYPE') ?: 'sqlite';
 define('DB_TYPE', strtolower($db_type_env)); 
 
 // MySQL Connection Parameters
