@@ -6,8 +6,11 @@ $stmt = $pdo->query("SELECT * FROM hosts ORDER BY id ASC LIMIT 1");
 $host = $stmt->fetch();
 
 if (!$host) {
-    header('Location: ../index.php');
-    exit;
+    $host_uuid = generate_code('RPH');
+    $ins = $pdo->prepare("INSERT INTO hosts (host_uuid, host_name, admin_pin, status) VALUES (?, 'Reception Printer', '123456', 'ONLINE')");
+    $ins->execute([$host_uuid]);
+    $stmt = $pdo->query("SELECT * FROM hosts ORDER BY id ASC LIMIT 1");
+    $host = $stmt->fetch();
 }
 
 // Auto-sync Windows local printers if table is empty

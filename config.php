@@ -35,7 +35,7 @@ define('UPLOAD_DIR', BASE_DIR . DIRECTORY_SEPARATOR . 'uploads' . DIRECTORY_SEPA
 define('DB_DIR', BASE_DIR . DIRECTORY_SEPARATOR . 'database');
 define('DB_PATH', DB_DIR . DIRECTORY_SEPARATOR . 'printcafe.sqlite');
 
-// Database Selection: Read environment variables if available (e.g. on Render/Cloud or .env), or fallback to constants
+// Database Selection: Read environment variables if available (e.g. on Render/Cloud), or default to sqlite fallback
 $db_type_env = getenv('DB_TYPE') ?: 'sqlite';
 define('DB_TYPE', strtolower($db_type_env)); 
 
@@ -57,13 +57,14 @@ if (!file_exists(DB_DIR)) {
 function get_db() {
     static $pdo = null;
     if ($pdo === null) {
+        $db_type = DB_TYPE;
         try {
-            if (DB_TYPE === 'mysql') {
+            if ($db_type === 'mysql') {
                 $dsn = 'mysql:host=' . DB_HOST . ';dbname=' . DB_NAME . ';charset=utf8mb4';
                 $pdo = new PDO($dsn, DB_USER, DB_PASS, [
                     PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
                     PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-                    PDO::ATTR_TIMEOUT => 10
+                    PDO::ATTR_TIMEOUT => 4
                 ]);
                 
                 // Auto-initialize MySQL schema if tables do not exist
@@ -78,11 +79,23 @@ function get_db() {
                 init_sqlite_schema($pdo);
             }
         } catch (PDOException $e) {
-            $err_msg = 'Database Connection Failed: ' . $e->getMessage();
+            // Smart Fallback to SQLite if remote MySQL connection fails/times out
+            if ($db_type === 'mysql') {
+                try {
+                    $pdo = new PDO('sqlite:' . DB_PATH);
+                    $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+                    $pdo->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
+                    $pdo->exec('PRAGMA foreign_keys = ON;');
+                    init_sqlite_schema($pdo);
+                    return $pdo;
+                } catch (Exception $sqe) {}
+            }
+
+            $err_msg = 'Database Connection Error: ' . $e->getMessage();
             if (strpos($_SERVER['REQUEST_URI'] ?? '', '/api/') !== false) {
                 json_response(['success' => false, 'error' => $err_msg], 200);
             } else {
-                throw new Exception($err_msg);
+                die('<!DOCTYPE html><html><head><title>Print Cafe - Error</title><style>body{background:#0b0f19;color:#fff;font-family:sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;}.card{background:rgba(22,28,45,0.85);border:1px solid rgba(239,68,68,0.4);border-radius:14px;padding:2rem;max-width:500px;text-align:center;}</style></head><body><div class="card"><div style="font-size:3rem;margin-bottom:1rem;">⚠️</div><h2>Database Connection Error</h2><p style="color:#9ca3af;font-size:0.95rem;">' . htmlspecialchars($e->getMessage()) . '</p><p style="color:#6b7280;font-size:0.85rem;margin-top:1rem;">Note: Free hosts (like InfinityFree MySQL) block external connections from Render. Set DB_TYPE=sqlite on Render for automatic embedded DB.</p><a href="../index.php" style="color:#6366f1;text-decoration:none;font-weight:bold;margin-top:1.5rem;display:inline-block;">← Return Home</a></div></body></html>');
             }
         }
     }
