@@ -16,11 +16,6 @@ if (empty($host_uuid)) {
     // If no host_uuid provided, find first host
     $stmt = $pdo->query("SELECT * FROM hosts ORDER BY id ASC LIMIT 1");
     $host = $stmt->fetch();
-    if ($host) {
-        $host_uuid = $host['host_uuid'];
-    } else {
-        json_response(['success' => false, 'error' => 'Host not found'], 404);
-    }
 } else {
     $stmt = $pdo->prepare("SELECT * FROM hosts WHERE host_uuid = ?");
     $stmt->execute([$host_uuid]);
@@ -28,7 +23,23 @@ if (empty($host_uuid)) {
 }
 
 if (!$host) {
-    json_response(['success' => false, 'error' => 'Host not found'], 404);
+    // If specific host_uuid requested wasn't found, try getting default host and update its UUID to match agent, OR create new host
+    $stmt = $pdo->query("SELECT * FROM hosts ORDER BY id ASC LIMIT 1");
+    $host = $stmt->fetch();
+    if ($host) {
+        if (!empty($host_uuid)) {
+            $upd = $pdo->prepare("UPDATE hosts SET host_uuid = ? WHERE id = ?");
+            $upd->execute([$host_uuid, $host['id']]);
+            $host['host_uuid'] = $host_uuid;
+        }
+    } else {
+        $final_uuid = !empty($host_uuid) ? $host_uuid : generate_code('RPH');
+        $ins = $pdo->prepare("INSERT INTO hosts (host_uuid, host_name, admin_pin, status) VALUES (?, 'Reception Printer', '123456', 'ONLINE')");
+        $ins->execute([$final_uuid]);
+        $stmt = $pdo->prepare("SELECT * FROM hosts WHERE host_uuid = ?");
+        $stmt->execute([$final_uuid]);
+        $host = $stmt->fetch();
+    }
 }
 
 // Update last_seen timestamp

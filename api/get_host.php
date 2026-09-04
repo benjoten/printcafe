@@ -20,19 +20,25 @@ if (empty($host_uuid)) {
 }
 
 if (!$host) {
-    json_response([
-        'success' => false,
-        'error' => 'Host printer not found. Please verify the QR Code.'
-    ], 404);
+    // Fallback to first host if specified host_uuid wasn't found
+    $stmt = $pdo->query("SELECT * FROM hosts ORDER BY id ASC LIMIT 1");
+    $host = $stmt->fetch();
+    if (!$host) {
+        $new_uuid = generate_code('RPH');
+        $ins = $pdo->prepare("INSERT INTO hosts (host_uuid, host_name, admin_pin, status) VALUES (?, 'Reception Printer', '123456', 'ONLINE')");
+        $ins->execute([$new_uuid]);
+        $stmt = $pdo->query("SELECT * FROM hosts ORDER BY id ASC LIMIT 1");
+        $host = $stmt->fetch();
+    }
 }
 
 // Auto-sync Windows local printers if table is empty
 auto_sync_windows_printers($pdo, $host['id']);
 
-// Calculate online status based on 30s heartbeat threshold
+// Calculate online status based on 45s heartbeat threshold
 $last_seen_time = strtotime($host['last_seen']);
 $now = time();
-$is_online = ($now - $last_seen_time) <= 35; // 35 seconds grace period
+$is_online = ($now - $last_seen_time) <= 45; // 45 seconds grace period
 
 // Fetch printers for this host
 $stmt = $pdo->prepare("SELECT * FROM printers WHERE host_id = ? ORDER BY is_default DESC, id ASC");

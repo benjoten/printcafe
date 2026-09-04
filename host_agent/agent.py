@@ -40,7 +40,7 @@ except ImportError:
     HAS_PIL = False
 
 # Default Config
-DEFAULT_SERVER_URL = "http://localhost/PrintCafe app"
+DEFAULT_SERVER_URL = "https://printcafe.onrender.com"
 VIRTUAL_PRINTER_KEYWORDS = ["pdf", "onenote", "xps", "anydesk", "fax", "microsoft print to pdf", "adobe pdf"]
 
 class HostPrintAgent:
@@ -111,17 +111,20 @@ class HostPrintAgent:
             if res.status_code == 200:
                 if "/aes.js" in res.text or "To-continue-browsing" in res.text:
                     print("[Agent Warning] Target free host (InfinityFree) is blocking Python API requests via AES JavaScript challenge.")
-                    print("[Agent Warning] Please use local server URL: http://localhost/PrintCafe app for 100% reliable printing!")
+                    print("[Agent Warning] Please use Render URL: https://printcafe.onrender.com for 100% reliable cloud printing!")
                     return False
                 
                 try:
                     data = res.json()
                     if data.get("success"):
-                        if not self.host_uuid:
-                            self.host_uuid = data.get("host_uuid")
+                        self.host_uuid = data.get("host_uuid")
                         return True
+                    else:
+                        print(f"[Agent] Heartbeat server error: {data.get('error')}")
                 except json.JSONDecodeError:
                     print(f"[Agent] Non-JSON response received from server: {res.text[:150]}")
+            else:
+                print(f"[Agent] Heartbeat failed with HTTP {res.status_code}: {res.text[:150]}")
         except Exception as e:
             print(f"[Agent] Heartbeat connection error: {e}")
         return False
