@@ -2,12 +2,6 @@
 require_once __DIR__ . '/config.php';
 $host_id = trim($_GET['host_id'] ?? $_GET['host_uuid'] ?? '');
 $token = trim($_GET['token'] ?? '');
-
-// Auto-redirect to scan.php to issue a fresh 60s event token if token is missing
-if (empty($token) && !empty($host_id)) {
-    header("Location: scan.php?host_id=" . urlencode($host_id), true, 302);
-    exit;
-}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -546,7 +540,7 @@ if (empty($token) && !empty($host_id)) {
             const paymentSec = document.getElementById('sum-payment-section');
             const confirmBtn = document.getElementById('confirm-print-btn');
 
-            if (hostConfig && parseInt(hostConfig.payment_enabled) === 1) {
+            if (hostConfig && (hostConfig.payment_enabled == 1 || hostConfig.payment_enabled === true)) {
                 const perPageRate = parseFloat(hostConfig.per_page_cost || 2.0);
                 calculatedTotalCost = (calculatedTotalPages * perPageRate).toFixed(2);
 
@@ -584,6 +578,8 @@ if (empty($token) && !empty($host_id)) {
         async function submitPrintJob() {
             closeSummaryModal();
 
+            const isPaymentEnabled = hostConfig && (hostConfig.payment_enabled == 1 || hostConfig.payment_enabled === true);
+
             const jobData = {
                 host_id: hostUuid,
                 token: qrToken,
@@ -603,8 +599,8 @@ if (empty($token) && !empty($host_id)) {
                 color_mode: document.getElementById('color-mode-select').value,
                 duplex_mode: document.getElementById('duplex-select').value,
                 user_device: /Mobile|Android|iPhone/i.test(navigator.userAgent) ? 'Mobile' : 'Desktop',
-                payment_status: (hostConfig && parseInt(hostConfig.payment_enabled) === 1) ? 'PAID' : 'FREE',
-                amount_paid: (hostConfig && parseInt(hostConfig.payment_enabled) === 1) ? calculatedTotalCost : 0,
+                payment_status: isPaymentEnabled ? 'PAID' : 'FREE',
+                amount_paid: isPaymentEnabled ? calculatedTotalCost : 0,
                 payment_txn_id: 'UPI-' + Date.now()
             };
 

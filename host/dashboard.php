@@ -186,53 +186,62 @@ $qr_img_src = 'https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=' .
 
     <!-- Settings Modal -->
     <div id="settings-modal" class="modal-overlay">
-        <div class="modal-content">
-            <h3 style="margin-bottom: 1rem;">⚙️ Host Admin Settings</h3>
-            <div class="form-group">
-                <label class="form-label">Host Name</label>
-                <input type="text" id="setting-host-name" class="form-control" value="<?= htmlspecialchars($host['host_name']) ?>">
-            </div>
-            <div class="form-group">
-                <label class="form-label">Require Print Approval</label>
-                <select id="setting-require-approval" class="form-control">
-                    <option value="0" <?= !$host['require_approval'] ? 'selected' : '' ?>>Auto Print (Immediate)</option>
-                    <option value="1" <?= $host['require_approval'] ? 'selected' : '' ?>>Require Host Admin Approval</option>
-                </select>
-            </div>
-            <div class="form-group">
-                <label class="form-label">Auto-Delete Temporary Files (Minutes)</label>
-                <input type="number" id="setting-auto-delete" class="form-control" value="<?= (int)$host['auto_delete_minutes'] ?>" min="1" max="1440">
+        <div class="modal-content" style="max-width: 680px; width: 95%;">
+            <h3 style="margin-bottom: 1.25rem; font-size: 1.2rem;">⚙️ Host Admin Settings</h3>
+            
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.25rem;">
+                <!-- Column 1: Host Configuration -->
+                <div style="background: rgba(255, 255, 255, 0.03); padding: 1rem; border-radius: var(--radius-sm); border: 1px solid var(--border-color);">
+                    <h4 style="font-size: 0.95rem; margin-bottom: 0.75rem; color: var(--primary);">🖨️ Host Configuration</h4>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Host Name</label>
+                        <input type="text" id="setting-host-name" class="form-control" value="<?= htmlspecialchars($host['host_name']) ?>">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Require Print Approval</label>
+                        <select id="setting-require-approval" class="form-control">
+                            <option value="0" <?= !$host['require_approval'] ? 'selected' : '' ?>>Auto Print (Immediate)</option>
+                            <option value="1" <?= $host['require_approval'] ? 'selected' : '' ?>>Require Host Admin Approval</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Auto-Delete Temp Files (Min)</label>
+                        <input type="number" id="setting-auto-delete" class="form-control" value="<?= (int)$host['auto_delete_minutes'] ?>" min="1" max="1440">
+                    </div>
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label class="form-label">Host Security PIN</label>
+                        <input type="password" id="setting-pin" class="form-control" placeholder="Enter Host PIN" value="123456">
+                    </div>
+                </div>
+
+                <!-- Column 2: UPI Payment Gateway Settings -->
+                <div style="background: rgba(255, 255, 255, 0.03); padding: 1rem; border-radius: var(--radius-sm); border: 1px solid var(--border-color);">
+                    <h4 style="font-size: 0.95rem; margin-bottom: 0.75rem; color: var(--accent-amber);">💳 UPI Payment Gateway</h4>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Payment Gateway Status</label>
+                        <select id="setting-payment-enabled" class="form-control">
+                            <option value="0" <?= !($host['payment_enabled'] ?? 0) ? 'selected' : '' ?>>Disabled (Free Printing)</option>
+                            <option value="1" <?= ($host['payment_enabled'] ?? 0) ? 'selected' : '' ?>>Enabled (Require UPI Payment)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Per Page Cost (₹)</label>
+                        <input type="number" id="setting-per-page-cost" class="form-control" step="0.5" min="0" value="<?= htmlspecialchars($host['per_page_cost'] ?? '2.00') ?>">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Merchant UPI ID</label>
+                        <input type="text" id="setting-upi-id" class="form-control" placeholder="e.g. shopname@upi" value="<?= htmlspecialchars($host['upi_id'] ?? '') ?>">
+                    </div>
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label class="form-label">Merchant / Business Name</label>
+                        <input type="text" id="setting-merchant-name" class="form-control" placeholder="e.g. Print Cafe Counter" value="<?= htmlspecialchars($host['merchant_name'] ?? 'Print Cafe Counter') ?>">
+                    </div>
+                </div>
             </div>
 
-            <hr style="border-color: var(--border-color); margin: 1rem 0;">
-            <h4 style="font-size: 0.95rem; margin-bottom: 0.75rem; color: var(--accent-amber);">💳 UPI Payment Gateway Settings</h4>
-            
-            <div class="form-group">
-                <label class="form-label">UPI Payment Gateway</label>
-                <select id="setting-payment-enabled" class="form-control">
-                    <option value="0" <?= !($host['payment_enabled'] ?? 0) ? 'selected' : '' ?>>Disabled (Free Printing)</option>
-                    <option value="1" <?= ($host['payment_enabled'] ?? 0) ? 'selected' : '' ?>>Enabled (Require UPI Payment)</option>
-                </select>
-            </div>
-            <div class="form-group">
-                <label class="form-label">Per Page Cost (₹)</label>
-                <input type="number" id="setting-per-page-cost" class="form-control" step="0.5" min="0" value="<?= htmlspecialchars($host['per_page_cost'] ?? '2.00') ?>">
-            </div>
-            <div class="form-group">
-                <label class="form-label">Merchant UPI ID</label>
-                <input type="text" id="setting-upi-id" class="form-control" placeholder="e.g. shopname@upi" value="<?= htmlspecialchars($host['upi_id'] ?? '') ?>">
-            </div>
-            <div class="form-group">
-                <label class="form-label">Merchant / Business Name</label>
-                <input type="text" id="setting-merchant-name" class="form-control" placeholder="e.g. Print Cafe Counter" value="<?= htmlspecialchars($host['merchant_name'] ?? 'Print Cafe Counter') ?>">
-            </div>
-
-            <div class="form-group">
-                <label class="form-label">Host Security PIN</label>
-                <input type="password" id="setting-pin" class="form-control" placeholder="Enter Host PIN" value="123456">
-            </div>
-            
-            <div style="border-top: 1px solid var(--border-color); padding-top: 1rem; margin-top: 1rem; display: flex; justify-content: space-between;">
+            <div style="border-top: 1px solid var(--border-color); padding-top: 1rem; margin-top: 1.25rem; display: flex; justify-content: space-between; align-items: center;">
                 <button class="btn btn-danger" onclick="regenerateQR()" style="font-size: 0.85rem;">🔄 Regenerate QR Code</button>
                 <div style="display: flex; gap: 0.5rem;">
                     <button class="btn btn-secondary" onclick="closeSettingsModal()">Cancel</button>

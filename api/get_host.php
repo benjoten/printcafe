@@ -41,27 +41,34 @@ $now = time();
 $diff = abs($now - $last_seen_time);
 $is_online = ($diff <= 60);
 
-// Session token validation if token provided
+// Session token validation (Strict QR scan verification)
 $token = trim($_GET['token'] ?? '');
 $token_valid = true;
 $token_error = '';
 
-if (!empty($token)) {
+if (empty($token)) {
+    $token_valid = false;
+    $token_error = '🔒 QR Code scan required. Direct URL access is prohibited. Please scan the counter QR code to print.';
+} else {
     $s_stmt = $pdo->prepare("SELECT * FROM qr_sessions WHERE session_token = ? AND host_id = ?");
     $s_stmt->execute([$token, $host['id']]);
     $sess = $s_stmt->fetch();
 
     if (!$sess) {
         $token_valid = false;
-        $token_error = 'Invalid QR session token. Please scan the live QR code on the printer host counter.';
+        $token_error = 'Invalid QR session token. Please scan the counter QR code.';
     } elseif ((int)$sess['is_used'] === 1) {
         $token_valid = false;
-        $token_error = 'This QR session URL has already been used. Please rescan the live QR code at the printer host counter.';
+        $token_error = 'This QR session link has already been consumed or refreshed. Please rescan the counter QR code.';
     } else {
         $expires_ts = strtotime($sess['expires_at']);
         if ($expires_ts < time()) {
             $token_valid = false;
-            $token_error = 'QR session expired (URLs are valid for 60 seconds only). Please rescan the live QR code at the printer host counter.';
+            $token_error = 'QR session expired (60 seconds limit). Please rescan the counter QR code.';
+        } else {
+            // Mark token as used immediately so refreshing the page in browser invalidates the URL!
+            $u_stmt = $pdo->prepare("UPDATE qr_sessions SET is_used = 1 WHERE id = ?");
+            $u_stmt->execute([$sess['id']]);
         }
     }
 }
@@ -96,7 +103,7 @@ json_response([
         'last_seen' => $host['last_seen'],
         'require_approval' => (bool)$host['require_approval'],
         'auto_delete_minutes' => $host['auto_delete_minutes'],
-        'payment_enabled' => (bool)($host['payment_enabled'] ?? 0),
+        'payment_enabled' => (int)($host['payment_enabled'] ?? 0),
         'per_page_cost' => (float)($host['per_page_cost'] ?? 2.0),
         'upi_id' => $host['upi_id'] ?? '',
         'merchant_name' => !empty($host['merchant_name']) ? $host['merchant_name'] : 'Print Cafe Shop'
