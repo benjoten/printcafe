@@ -211,30 +211,69 @@ class HostPrintAgent:
             print(f"[Agent] PyPDF extraction error: {e}")
             return src_path
 
+    def download_job_file(self, job):
+        """Locate file on local disk or download from web server if remote (cloud deployment)"""
+        file_path = job.get("file_path", "")
+        file_url = job.get("file_url", "")
+        
+        # 1. Check local filesystem if web server and agent are on the same machine
+        if file_path and os.path.exists(file_path):
+            return file_path, False
+
+        resolved_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), file_path.lstrip("/\\"))
+        if os.path.exists(resolved_path):
+            return resolved_path, False
+
+        # 2. Download from web server if remote (e.g. Render Cloud)
+        download_urls = []
+        if file_url:
+            download_urls.append(file_url)
+
+        rel_path = file_path
+        if "/uploads/" in file_path:
+            rel_path = "uploads/" + file_path.split("/uploads/", 1)[1]
+        elif "\\uploads\\" in file_path:
+            rel_path = "uploads/" + file_path.split("\\uploads\\", 1)[1].replace("\\", "/")
+
+        download_urls.append(f"{self.server_url}/{rel_path.lstrip('/')}")
+
+        for url in download_urls:
+            try:
+                print(f"[Agent] Downloading print document from cloud server: {url}")
+                res = self.session.get(url, timeout=15)
+                if res.status_code == 200 and len(res.content) > 0:
+                    ext = "." + job.get("file_type", "tmp").lstrip(".")
+                    tmp_fd, tmp_path = tempfile.mkstemp(suffix=ext, prefix="printcafe_")
+                    os.write(tmp_fd, res.content)
+                    os.close(tmp_fd)
+                    print(f"[Agent] Downloaded {len(res.content)} bytes to local file: {tmp_path}")
+                    return tmp_path, True
+            except Exception as e:
+                print(f"[Agent] File download attempt failed ({url}): {e}")
+
+        return None, False
+
     def execute_print_job(self, job):
         """Execute print job on target Windows Printer Spooler"""
         job_uuid = job.get("job_uuid")
-        file_path = job.get("file_path")
         printer_name = job.get("printer_name") or job.get("printer_system_name")
         copies = int(job.get("copies", 1))
 
         print(f"\n[Agent] Processing Print Job #{job_uuid} -> Printer: {printer_name}")
-        self.update_job_status(job_uuid, "PROCESSING", "Agent preparing document & print parameters...")
+        self.update_job_status(job_uuid, "PROCESSING", "Agent downloading & preparing document...")
 
-        if not file_path or not os.path.exists(file_path):
-            # Try resolving path relative to server root
-            resolved_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), file_path.lstrip("/\\"))
-            if os.path.exists(resolved_path):
-                file_path = resolved_path
-            else:
-                self.update_job_status(job_uuid, "FAILED", f"Source file not found on host disk: {file_path}")
-                return
+        # Locate local file or download from cloud server
+        local_file_path, is_temporary = self.download_job_file(job)
+
+        if not local_file_path or not os.path.exists(local_file_path):
+            self.update_job_status(job_uuid, "FAILED", f"Source file could not be downloaded or found on disk: {job.get('file_path')}")
+            return
 
         # Process page range if PDF
-        target_print_file = file_path
+        target_print_file = local_file_path
         if job.get("file_type") == "pdf":
             target_print_file = self.process_pdf_pages(
-                file_path,
+                local_file_path,
                 job.get("page_selection_type"),
                 int(job.get("page_from", 1)),
                 int(job.get("page_to", 1)),
@@ -256,7 +295,12 @@ class HostPrintAgent:
         except Exception as e:
             self.update_job_status(job_uuid, "FAILED", f"Error during printing: {str(e)}")
         finally:
-            if target_print_file != file_path and os.path.exists(target_print_file):
+            if is_temporary and os.path.exists(local_file_path):
+                try:
+                    os.remove(local_file_path)
+                except Exception:
+                    pass
+            if target_print_file != local_file_path and os.path.exists(target_print_file):
                 try:
                     os.remove(target_print_file)
                 except Exception:

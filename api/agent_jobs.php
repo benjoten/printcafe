@@ -45,6 +45,12 @@ $upd->execute([$job['id']]);
 $log_stmt = $pdo->prepare("INSERT INTO print_logs (job_id, event, message) VALUES (?, 'PROCESSING', 'Host agent picked up job for processing.')");
 $log_stmt->execute([$job['id']]);
 
+$protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http';
+$host_header = $_SERVER['HTTP_HOST'] ?? 'localhost';
+$file_relative = str_replace(BASE_DIR, '', $job['file_path']);
+$file_relative = ltrim(str_replace('\\', '/', $file_relative), '/');
+$file_url = $protocol . '://' . $host_header . '/' . $file_relative;
+
 json_response([
     'success' => true,
     'has_job' => true,
@@ -53,6 +59,7 @@ json_response([
         'job_uuid' => $job['job_uuid'],
         'file_name' => $job['file_name'],
         'file_path' => $job['file_path'],
+        'file_url' => $file_url,
         'file_type' => $job['file_type'],
         'printer_system_name' => $job['printer_system_name'] ?? 'DEFAULT',
         'printer_name' => $job['printer_name'] ?? 'Default Printer',
