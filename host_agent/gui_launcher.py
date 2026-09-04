@@ -76,6 +76,11 @@ class AgentGUI:
 
     def toggle_agent(self):
         if not self.is_running:
+            import importlib
+            import agent
+            importlib.reload(agent)
+            from agent import HostPrintAgent
+
             url = self.ent_url.get().strip()
             uuid_val = self.ent_uuid.get().strip()
             self.agent = HostPrintAgent(server_url=url, host_uuid=uuid_val if uuid_val else None)
