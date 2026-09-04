@@ -340,7 +340,7 @@ class HostPrintAgent:
                 hDC.StartPage()
 
                 dib = ImageWin.Dib(img)
-                dib.draw(hDC.GetHandle(), (x_offset, y_offset, x_offset + target_w, y_offset + target_h))
+                dib.draw(hDC.GetSafeHdc(), (x_offset, y_offset, x_offset + target_w, y_offset + target_h))
 
                 hDC.EndPage()
                 hDC.EndDoc()
@@ -353,7 +353,7 @@ class HostPrintAgent:
             return False
 
     def spool_to_windows_printer(self, file_path, printer_name, copies=1):
-        """Spool print file to Windows Spooler using GDI, ShellExecute, MSPaint, or PowerShell"""
+        """Spool print file to Windows Spooler using GDI, ShellExecute, or PowerShell"""
         ext = os.path.splitext(file_path)[1].lower()
 
         # 1. Native GDI Direct Print for Images (.jpg, .jpeg, .png, .bmp)
@@ -361,14 +361,19 @@ class HostPrintAgent:
             if self.print_image_gdi(file_path, printer_name, copies):
                 return True
 
-            # 2. MSPaint /pt Fallback for Images
-            try:
-                print(f"[Agent] Trying MSPaint /pt printing fallback for image...")
-                for _ in range(copies):
-                    subprocess.run(["mspaint.exe", "/pt", file_path, printer_name], check=True, timeout=10)
-                return True
-            except Exception as e:
-                print(f"[Agent] MSPaint print fallback warning: {e}")
+            # 2. Silent Image to PDF conversion fallback
+            if HAS_PIL:
+                try:
+                    print(f"[Agent] Converting image to temporary PDF for silent spooling...")
+                    img = Image.open(file_path)
+                    if img.mode != 'RGB':
+                        img = img.convert('RGB')
+                    tmp_fd, tmp_pdf = tempfile.mkstemp(suffix=".pdf", prefix="printcafe_")
+                    os.close(tmp_fd)
+                    img.save(tmp_pdf, "PDF", resolution=300.0)
+                    file_path = tmp_pdf
+                except Exception as e:
+                    print(f"[Agent] Image to PDF conversion fallback error: {e}")
 
         # 3. ShellExecute PrintTo (Default for PDF / registered document types)
         if HAS_WIN32 and printer_name:
