@@ -32,7 +32,12 @@ switch ($action) {
         $auto_delete_minutes = max(1, (int)($input['auto_delete_minutes'] ?? $host['auto_delete_minutes']));
         $new_pin = !empty($input['new_pin']) ? trim($input['new_pin']) : $host['admin_pin'];
 
-        $upd_sql = "UPDATE hosts SET host_name = :name, require_approval = :req_app, auto_delete_minutes = :del_min, admin_pin = :pin, updated_at = CURRENT_TIMESTAMP WHERE id = :id";
+        $payment_enabled = isset($input['payment_enabled']) ? ((int)$input['payment_enabled'] ? 1 : 0) : ($host['payment_enabled'] ?? 0);
+        $per_page_cost = max(0.1, (float)($input['per_page_cost'] ?? ($host['per_page_cost'] ?? 2.0)));
+        $upi_id = trim($input['upi_id'] ?? ($host['upi_id'] ?? ''));
+        $merchant_name = trim($input['merchant_name'] ?? ($host['merchant_name'] ?? 'Print Cafe Shop'));
+
+        $upd_sql = "UPDATE hosts SET host_name = :name, require_approval = :req_app, auto_delete_minutes = :del_min, admin_pin = :pin, payment_enabled = :pay_en, per_page_cost = :per_cost, upi_id = :upi, merchant_name = :merch, updated_at = CURRENT_TIMESTAMP WHERE id = :id";
 
         $upd = $pdo->prepare($upd_sql);
         $upd->execute([
@@ -40,6 +45,10 @@ switch ($action) {
             ':req_app' => $require_approval,
             ':del_min' => $auto_delete_minutes,
             ':pin' => $new_pin,
+            ':pay_en' => $payment_enabled,
+            ':per_cost' => $per_page_cost,
+            ':upi' => $upi_id,
+            ':merch' => $merchant_name,
             ':id' => $host['id']
         ]);
 
@@ -148,7 +157,8 @@ switch ($action) {
                 SUM(CASE WHEN status = 'COMPLETED' THEN 1 ELSE 0 END) as completed_jobs,
                 SUM(CASE WHEN status = 'FAILED' THEN 1 ELSE 0 END) as failed_jobs,
                 SUM(CASE WHEN {$today_cond} THEN 1 ELSE 0 END) as today_jobs,
-                SUM(CASE WHEN status = 'COMPLETED' THEN (copies * total_pages) ELSE 0 END) as total_pages_printed
+                SUM(CASE WHEN status = 'COMPLETED' THEN (copies * total_pages) ELSE 0 END) as total_pages_printed,
+                SUM(CASE WHEN payment_status = 'PAID' THEN amount_paid ELSE 0 END) as total_earnings
             FROM print_jobs WHERE host_id = ?
         ");
         $stats_stmt->execute([$host['id']]);
@@ -162,7 +172,8 @@ switch ($action) {
                 'completed_jobs' => (int)($stats['completed_jobs'] ?? 0),
                 'failed_jobs' => (int)($stats['failed_jobs'] ?? 0),
                 'today_jobs' => (int)($stats['today_jobs'] ?? 0),
-                'total_pages_printed' => (int)($stats['total_pages_printed'] ?? 0)
+                'total_pages_printed' => (int)($stats['total_pages_printed'] ?? 0),
+                'total_earnings' => round((float)($stats['total_earnings'] ?? 0), 2)
             ]
         ]);
         break;

@@ -263,6 +263,29 @@ function init_sqlite_schema($pdo) {
                 FOREIGN KEY (job_id) REFERENCES print_jobs(id) ON DELETE CASCADE
             );
         ");
+
+        $pdo->exec("
+            CREATE TABLE IF NOT EXISTS qr_sessions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                session_token TEXT UNIQUE NOT NULL,
+                host_id INTEGER NOT NULL,
+                is_used INTEGER DEFAULT 0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                expires_at TIMESTAMP NOT NULL,
+                FOREIGN KEY (host_id) REFERENCES hosts(id) ON DELETE CASCADE
+            );
+        ");
+
+        // Migration helpers for host payment settings
+        try { $pdo->exec("ALTER TABLE hosts ADD COLUMN payment_enabled INTEGER DEFAULT 0;"); } catch (Exception $e) {}
+        try { $pdo->exec("ALTER TABLE hosts ADD COLUMN per_page_cost REAL DEFAULT 2.0;"); } catch (Exception $e) {}
+        try { $pdo->exec("ALTER TABLE hosts ADD COLUMN upi_id TEXT DEFAULT '';"); } catch (Exception $e) {}
+        try { $pdo->exec("ALTER TABLE hosts ADD COLUMN merchant_name TEXT DEFAULT 'Print Cafe Shop';"); } catch (Exception $e) {}
+
+        // Migration helpers for print_jobs payment tracking
+        try { $pdo->exec("ALTER TABLE print_jobs ADD COLUMN payment_status TEXT DEFAULT 'UNPAID';"); } catch (Exception $e) {}
+        try { $pdo->exec("ALTER TABLE print_jobs ADD COLUMN amount_paid REAL DEFAULT 0.0;"); } catch (Exception $e) {}
+        try { $pdo->exec("ALTER TABLE print_jobs ADD COLUMN payment_txn_id TEXT DEFAULT '';"); } catch (Exception $e) {}
     } catch (Exception $e) {
         // Table creation catch
     }

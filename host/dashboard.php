@@ -48,7 +48,7 @@ $qr_img_src = 'https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=' .
 
     <main class="container">
         <!-- Top Stats Banner -->
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
             <div class="glass-panel" style="padding: 1.25rem;">
                 <div style="font-size: 0.85rem; color: var(--text-muted); font-weight: 600;">TOTAL PRINTS</div>
                 <div id="stat-total-jobs" style="font-size: 1.8rem; font-weight: 800; font-family: 'Outfit';">0</div>
@@ -60,6 +60,10 @@ $qr_img_src = 'https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=' .
             <div class="glass-panel" style="padding: 1.25rem;">
                 <div style="font-size: 0.85rem; color: var(--text-muted); font-weight: 600;">PRINTED TODAY</div>
                 <div id="stat-today-jobs" style="font-size: 1.8rem; font-weight: 800; font-family: 'Outfit'; color: var(--accent-emerald);">0</div>
+            </div>
+            <div class="glass-panel" style="padding: 1.25rem;">
+                <div style="font-size: 0.85rem; color: var(--text-muted); font-weight: 600;">TOTAL EARNINGS</div>
+                <div id="stat-total-earnings" style="font-size: 1.8rem; font-weight: 800; font-family: 'Outfit'; color: var(--accent-amber);">₹0.00</div>
             </div>
             <div class="glass-panel" style="padding: 1.25rem;">
                 <div style="font-size: 0.85rem; color: var(--text-muted); font-weight: 600;">FAILED JOBS</div>
@@ -74,19 +78,23 @@ $qr_img_src = 'https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=' .
                     <h3 style="font-size: 1.25rem; margin-bottom: 0.25rem;" id="display-host-name"><?= htmlspecialchars($host['host_name']) ?></h3>
                     <div style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1.25rem;">Host ID: <code id="display-host-id"><?= htmlspecialchars($host['host_uuid']) ?></code></div>
 
-                    <!-- Fixed QR Code Container -->
-                    <div style="background: #fff; padding: 0.75rem; border-radius: var(--radius-md); display: inline-block; box-shadow: var(--shadow-card); margin-bottom: 1rem;">
+                    <!-- Fixed Dynamic Session QR Code Container -->
+                    <div style="background: #fff; padding: 0.75rem; border-radius: var(--radius-md); display: inline-block; box-shadow: var(--shadow-card); margin-bottom: 0.5rem;">
                         <div id="qrcode-container" style="width:180px; height:180px; display:flex; align-items:center; justify-content:center;">
-                            <img id="qr-img-element" src="<?= $qr_img_src ?>" alt="Host QR Code" style="width:180px; height:180px; display:block;">
+                            <img id="qr-img-element" src="<?= $qr_img_src ?>" alt="Host Live QR Code" style="width:180px; height:180px; display:block;">
                         </div>
                     </div>
 
-                    <div style="font-size: 0.8rem; color: var(--text-dim); margin-bottom: 1rem; word-break: break-all;">
-                        Scan QR Code to Print
+                    <div style="font-size: 0.8rem; color: var(--accent-emerald); font-weight: 600; margin-bottom: 0.5rem;" id="qr-timer-badge">
+                        🟢 Single-Use Counter QR (Auto-refreshes in <span id="qr-countdown">45</span>s)
+                    </div>
+
+                    <div style="font-size: 0.75rem; color: var(--text-dim); margin-bottom: 1rem;">
+                        Scan QR code at counter • Session URLs expire after 60s
                     </div>
 
                     <div style="display: flex; gap: 0.5rem; justify-content: center;">
-                        <button class="btn btn-secondary" onclick="downloadQR()" style="font-size: 0.85rem; padding: 0.5rem 0.85rem;">📥 Download</button>
+                        <button class="btn btn-secondary" onclick="refreshDynamicQR()" style="font-size: 0.85rem; padding: 0.5rem 0.85rem;">🔄 Refresh QR</button>
                         <button class="btn btn-secondary" onclick="printQRTag()" style="font-size: 0.85rem; padding: 0.5rem 0.85rem;">🖨️ Print Tag</button>
                     </div>
                 </div>
@@ -196,6 +204,30 @@ $qr_img_src = 'https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=' .
                 <label class="form-label">Auto-Delete Temporary Files (Minutes)</label>
                 <input type="number" id="setting-auto-delete" class="form-control" value="<?= (int)$host['auto_delete_minutes'] ?>" min="1" max="1440">
             </div>
+
+            <hr style="border-color: var(--border-color); margin: 1rem 0;">
+            <h4 style="font-size: 0.95rem; margin-bottom: 0.75rem; color: var(--accent-amber);">💳 UPI Payment Gateway Settings</h4>
+            
+            <div class="form-group">
+                <label class="form-label">UPI Payment Gateway</label>
+                <select id="setting-payment-enabled" class="form-control">
+                    <option value="0" <?= !($host['payment_enabled'] ?? 0) ? 'selected' : '' ?>>Disabled (Free Printing)</option>
+                    <option value="1" <?= ($host['payment_enabled'] ?? 0) ? 'selected' : '' ?>>Enabled (Require UPI Payment)</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Per Page Cost (₹)</label>
+                <input type="number" id="setting-per-page-cost" class="form-control" step="0.5" min="0" value="<?= htmlspecialchars($host['per_page_cost'] ?? '2.00') ?>">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Merchant UPI ID</label>
+                <input type="text" id="setting-upi-id" class="form-control" placeholder="e.g. shopname@upi" value="<?= htmlspecialchars($host['upi_id'] ?? '') ?>">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Merchant / Business Name</label>
+                <input type="text" id="setting-merchant-name" class="form-control" placeholder="e.g. Print Cafe Counter" value="<?= htmlspecialchars($host['merchant_name'] ?? 'Print Cafe Counter') ?>">
+            </div>
+
             <div class="form-group">
                 <label class="form-label">Host Security PIN</label>
                 <input type="password" id="setting-pin" class="form-control" placeholder="Enter Host PIN" value="123456">
@@ -225,11 +257,47 @@ $qr_img_src = 'https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=' .
     <script>
         const qrUrl = <?= json_encode($qr_full_url) ?>;
         const hostUuid = <?= json_encode($host['host_uuid']) ?>;
+        let qrCountdownSec = 45;
 
         window.addEventListener('DOMContentLoaded', () => {
             loadPrinters();
             startPolling();
+            startQRTimer();
         });
+
+        // Dynamic 45-second QR Token Refreshing
+        async function refreshDynamicQR() {
+            try {
+                const res = await fetch(`../api/generate_qr_token.php?host_id=${hostUuid}`);
+                const data = await res.json();
+                if (data.success) {
+                    const dynamicUrl = data.qr_url;
+                    const qrImgSrc = 'https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=' + encodeURIComponent(dynamicUrl);
+                    const qrImg = document.getElementById('qr-img-element');
+                    if (qrImg) qrImg.src = qrImgSrc;
+                    
+                    const printImg = document.getElementById('printable-qrcode-container')?.querySelector('img');
+                    if (printImg) printImg.src = qrImgSrc;
+
+                    qrCountdownSec = 45;
+                    const countdownEl = document.getElementById('qr-countdown');
+                    if (countdownEl) countdownEl.innerText = qrCountdownSec;
+                }
+            } catch(e) {}
+        }
+
+        function startQRTimer() {
+            refreshDynamicQR();
+            setInterval(() => {
+                qrCountdownSec--;
+                const countdownEl = document.getElementById('qr-countdown');
+                if (qrCountdownSec <= 0) {
+                    refreshDynamicQR();
+                } else if (countdownEl) {
+                    countdownEl.innerText = qrCountdownSec;
+                }
+            }, 1000);
+        }
 
         // Polling loop for queue, heartbeat, printers & history
         function startPolling() {
@@ -270,7 +338,7 @@ $qr_img_src = 'https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=' .
                     <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.05); padding: 0.75rem 1rem; border-radius: var(--radius-sm); margin-bottom: 0.5rem;">
                         <div>
                             <strong>${j.file_name}</strong> (${j.copies} copies, ${j.total_pages} pages)
-                            <div style="font-size: 0.8rem; color: var(--text-muted);">${j.user_device} • Job ${j.job_uuid}</div>
+                            <div style="font-size: 0.8rem; color: var(--text-muted);">${j.user_device} • Job ${j.job_uuid} • ${j.payment_status === 'PAID' ? '₹' + j.amount_paid + ' PAID' : 'FREE'}</div>
                         </div>
                         <div style="display: flex; gap: 0.5rem;">
                             <button class="btn btn-primary" onclick="approveJob(${j.id}, true)" style="padding: 0.35rem 0.75rem; font-size: 0.85rem;">Approve</button>
@@ -316,6 +384,9 @@ $qr_img_src = 'https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=' .
                     document.getElementById('stat-pages-printed').innerText = data.stats.total_pages_printed;
                     document.getElementById('stat-today-jobs').innerText = data.stats.today_jobs;
                     document.getElementById('stat-failed-jobs').innerText = data.stats.failed_jobs;
+                    if (document.getElementById('stat-total-earnings')) {
+                        document.getElementById('stat-total-earnings').innerText = '₹' + parseFloat(data.stats.total_earnings || 0).toFixed(2);
+                    }
 
                     const tbody = document.getElementById('history-tbody');
                     if (data.history.length === 0) {
@@ -446,6 +517,10 @@ $qr_img_src = 'https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=' .
             const hostName = document.getElementById('setting-host-name').value;
             const requireApproval = document.getElementById('setting-require-approval').value;
             const autoDelete = document.getElementById('setting-auto-delete').value;
+            const paymentEnabled = document.getElementById('setting-payment-enabled').value;
+            const perPageCost = document.getElementById('setting-per-page-cost').value;
+            const upiId = document.getElementById('setting-upi-id').value;
+            const merchantName = document.getElementById('setting-merchant-name').value;
             const pin = document.getElementById('setting-pin').value;
 
             const res = await fetch('../api/admin_action.php', {
@@ -456,6 +531,10 @@ $qr_img_src = 'https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=' .
                     host_name: hostName,
                     require_approval: requireApproval,
                     auto_delete_minutes: autoDelete,
+                    payment_enabled: paymentEnabled,
+                    per_page_cost: perPageCost,
+                    upi_id: upiId,
+                    merchant_name: merchantName,
                     pin
                 })
             });

@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/config.php';
 $host_id = trim($_GET['host_id'] ?? $_GET['host_uuid'] ?? '');
+$token = trim($_GET['token'] ?? '');
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -25,6 +26,22 @@ $host_id = trim($_GET['host_id'] ?? $_GET['host_uuid'] ?? '');
     </header>
 
     <main class="client-container">
+        <!-- QR Token Expired Screen -->
+        <div id="token-expired-card" class="glass-panel" style="padding: 2rem; text-align: center; display: none;">
+            <div style="font-size: 3.5rem; margin-bottom: 1rem;">⏳</div>
+            <h2 style="font-size: 1.5rem; color: var(--accent-rose); margin-bottom: 0.5rem;">QR Code Link Expired</h2>
+            <p style="color: var(--text-muted); margin-bottom: 1.5rem;" id="expired-reason-text">
+                This QR Code link has expired (60-second time limit) or has already been used for printing.
+            </p>
+            <div style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.2); padding: 1rem; border-radius: var(--radius-sm); font-size: 0.9rem; margin-bottom: 1.5rem; text-align: left;">
+                <div style="font-weight: 700; color: var(--accent-rose); margin-bottom: 0.25rem;">🔒 Security & Privacy Notice</div>
+                For security and to prevent unauthorized printing, counter QR links expire after 60 seconds or after 1 print request.
+            </div>
+            <p style="font-size: 0.95rem; color: var(--text-main); font-weight: 600;">
+                📸 Please rescan the live counter QR code to upload & print your file.
+            </p>
+        </div>
+
         <!-- Host Offline Screen -->
         <div id="host-offline-card" class="glass-panel" style="padding: 2rem; text-align: center; display: none;">
             <div style="font-size: 3rem; margin-bottom: 1rem;">⚠️</div>
@@ -238,7 +255,7 @@ $host_id = trim($_GET['host_id'] ?? $_GET['host_uuid'] ?? '');
     <!-- Final Print Confirmation Modal -->
     <div id="summary-modal" class="modal-overlay">
         <div class="modal-content">
-            <h3 style="margin-bottom: 1rem;">🖨️ Confirm Print Request</h3>
+            <h3 style="margin-bottom: 1rem;" id="sum-modal-title">🖨️ Confirm Print Request</h3>
             
             <div style="background: var(--bg-input); padding: 1rem; border-radius: var(--radius-sm); margin-bottom: 1.25rem; font-size: 0.9rem;">
                 <div style="display: flex; justify-content: space-between; margin-bottom: 0.4rem;">
@@ -257,26 +274,55 @@ $host_id = trim($_GET['host_id'] ?? $_GET['host_uuid'] ?? '');
                     <span style="color: var(--text-muted);">Copies:</span>
                     <strong id="sum-copies">1</strong>
                 </div>
-                <div style="display: flex; justify-content: space-between;">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 0.4rem;">
                     <span style="color: var(--text-muted);">Paper / Color:</span>
                     <strong id="sum-paper-color">A4 • Black & White</strong>
+                </div>
+
+                <!-- Dynamic UPI Payment Summary Section -->
+                <div id="sum-payment-section" style="display: none; border-top: 1px dashed var(--border-color); margin-top: 0.75rem; padding-top: 0.75rem;">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 0.4rem;">
+                        <span style="color: var(--text-muted);">Rate per Page:</span>
+                        <strong id="sum-page-rate">₹2.00</strong>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 0.75rem; font-size: 1.15rem; font-weight: 800; color: var(--accent-amber);">
+                        <span>Total Payable Amount:</span>
+                        <strong id="sum-total-amount">₹0.00</strong>
+                    </div>
+
+                    <a id="sum-upi-btn" href="#" class="btn btn-primary btn-block" style="text-align: center; text-decoration: none; display: block; margin-bottom: 0.75rem; background: linear-gradient(135deg, #10b981, #059669);">
+                        📱 Pay via Installed UPI App (GPay / PhonePe / Paytm)
+                    </a>
+                    
+                    <div style="text-align: center; margin-bottom: 0.75rem;">
+                        <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.35rem;">Or scan QR code to pay via UPI:</div>
+                        <img id="sum-upi-qr-img" src="" alt="UPI Payment QR Code" style="width: 150px; height: 150px; border-radius: 8px; background: #fff; padding: 4px; border: 1px solid var(--border-color); display: inline-block;">
+                    </div>
+
+                    <div style="font-size: 0.75rem; color: var(--text-dim); text-align: center;">
+                        Merchant: <span id="sum-merchant-name">Print Cafe</span> • UPI ID: <code id="sum-upi-id">shop@upi</code>
+                    </div>
                 </div>
             </div>
 
             <div style="display: flex; gap: 0.75rem;">
                 <button class="btn btn-secondary" style="flex:1;" onclick="closeSummaryModal()">Back</button>
-                <button class="btn btn-primary" style="flex:2;" onclick="submitPrintJob()">🖨️ PRINT NOW</button>
+                <button class="btn btn-primary" id="confirm-print-btn" style="flex:2;" onclick="submitPrintJob()">🖨️ PRINT NOW</button>
             </div>
         </div>
     </div>
 
     <script>
         const hostUuid = <?= json_encode($host_id) ?>;
+        const qrToken = <?= json_encode($token) ?>;
+        let hostConfig = null;
         let activeFile = null;
         let uploadResult = null;
         let pdfDoc = null;
         let currentPreviewPage = 1;
         let totalDocPages = 1;
+        let calculatedTotalPages = 1;
+        let calculatedTotalCost = 0;
         let selectedOrientation = 'portrait';
         let copiesCount = 1;
         let activeJobUuid = null;
@@ -289,11 +335,17 @@ $host_id = trim($_GET['host_id'] ?? $_GET['host_uuid'] ?? '');
 
         async function checkHostStatus() {
             try {
-                const res = await fetch(`api/get_host.php?host_id=${hostUuid}`);
+                const res = await fetch(`api/get_host.php?host_id=${hostUuid}&token=${qrToken}`);
                 const data = await res.json();
                 if (data.success) {
+                    if (data.token_valid === false) {
+                        showTokenExpiredCard(data.token_error);
+                        return;
+                    }
                     if (data.host.is_online) {
+                        hostConfig = data.host;
                         document.getElementById('host-offline-card').style.display = 'none';
+                        document.getElementById('token-expired-card').style.display = 'none';
                         document.getElementById('client-flow-card').style.display = 'block';
                         document.getElementById('display-printer-name').innerText = data.active_printer ? data.active_printer.printer_name : data.host.host_name;
                         document.getElementById('host-status-indicator').innerHTML = '<span class="badge-status badge-online"><span class="pulse-dot"></span> Host Online</span>';
@@ -308,8 +360,17 @@ $host_id = trim($_GET['host_id'] ?? $_GET['host_uuid'] ?? '');
             }
         }
 
+        function showTokenExpiredCard(msg) {
+            document.getElementById('host-offline-card').style.display = 'none';
+            document.getElementById('client-flow-card').style.display = 'none';
+            document.getElementById('token-expired-card').style.display = 'block';
+            document.getElementById('expired-reason-text').innerText = msg || 'This QR Code link has expired (60s limit) or has already been used.';
+            document.getElementById('host-status-indicator').innerHTML = '<span class="badge-status badge-offline">QR Expired</span>';
+        }
+
         function showOfflineCard(msg) {
             document.getElementById('host-offline-card').style.display = 'block';
+            document.getElementById('token-expired-card').style.display = 'none';
             document.getElementById('client-flow-card').style.display = 'none';
             document.getElementById('offline-reason-text').innerText = msg;
             document.getElementById('host-status-indicator').innerHTML = '<span class="badge-status badge-offline">Host Offline</span>';
@@ -430,14 +491,61 @@ $host_id = trim($_GET['host_id'] ?? $_GET['host_uuid'] ?? '');
         function openSummaryModal() {
             const pageType = document.getElementById('page-select-type').value;
             let pageText = 'All Pages';
-            if (pageType === 'range') pageText = `Pages ${document.getElementById('page-from').value}–${document.getElementById('page-to').value}`;
-            if (pageType === 'custom') pageText = `Pages (${document.getElementById('page-custom-csv').value})`;
+            let pageCount = totalDocPages;
+
+            if (pageType === 'range') {
+                const pFrom = parseInt(document.getElementById('page-from').value) || 1;
+                const pTo = parseInt(document.getElementById('page-to').value) || 1;
+                pageCount = Math.max(1, pTo - pFrom + 1);
+                pageText = `Pages ${pFrom}–${pTo}`;
+            } else if (pageType === 'custom') {
+                const csv = document.getElementById('page-custom-csv').value;
+                pageText = `Pages (${csv})`;
+                const parts = csv.split(',').filter(x => x.trim().length > 0);
+                pageCount = parts.length > 0 ? parts.length : totalDocPages;
+            }
+
+            calculatedTotalPages = pageCount * copiesCount;
 
             document.getElementById('sum-doc-name').innerText = activeFile.name;
             document.getElementById('sum-orientation').innerText = selectedOrientation.toUpperCase();
             document.getElementById('sum-pages').innerText = pageText;
             document.getElementById('sum-copies').innerText = copiesCount;
             document.getElementById('sum-paper-color').innerText = `${document.getElementById('paper-size-select').value} • ${document.getElementById('color-mode-select').value === 'color' ? 'Color' : 'Black & White'}`;
+
+            // Handle UPI Payment options
+            const paymentSec = document.getElementById('sum-payment-section');
+            const confirmBtn = document.getElementById('confirm-print-btn');
+
+            if (hostConfig && parseInt(hostConfig.payment_enabled) === 1) {
+                const perPageRate = parseFloat(hostConfig.per_page_cost || 2.0);
+                calculatedTotalCost = (calculatedTotalPages * perPageRate).toFixed(2);
+
+                document.getElementById('sum-modal-title').innerText = '💳 UPI Payment & Confirm Print';
+                document.getElementById('sum-page-rate').innerText = '₹' + perPageRate.toFixed(2) + ' / page';
+                document.getElementById('sum-total-amount').innerText = '₹' + calculatedTotalCost;
+                document.getElementById('sum-merchant-name').innerText = hostConfig.merchant_name || 'Print Cafe Host';
+                document.getElementById('sum-upi-id').innerText = hostConfig.upi_id || 'Not Configured';
+
+                const upiId = hostConfig.upi_id || 'shop@upi';
+                const merchantName = encodeURIComponent(hostConfig.merchant_name || 'Print Cafe');
+                const upiIntentUrl = `upi://pay?pa=${upiId}&pn=${merchantName}&am=${calculatedTotalCost}&cu=INR&tn=Print_${encodeURIComponent(activeFile.name)}`;
+
+                const upiBtn = document.getElementById('sum-upi-btn');
+                upiBtn.href = upiIntentUrl;
+                upiBtn.innerText = `📱 Pay ₹${calculatedTotalCost} via Installed UPI App`;
+                document.getElementById('sum-upi-qr-img').src = 'https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=' + encodeURIComponent(upiIntentUrl);
+
+                paymentSec.style.display = 'block';
+                confirmBtn.innerText = `✅ PAYMENT DONE - PRINT NOW (₹${calculatedTotalCost})`;
+                confirmBtn.style.background = 'linear-gradient(135deg, #10b981, #059669)';
+            } else {
+                paymentSec.style.display = 'none';
+                document.getElementById('sum-modal-title').innerText = '🖨️ Confirm Print Request';
+                confirmBtn.innerText = '🖨️ PRINT NOW';
+                confirmBtn.style.background = 'var(--primary)';
+                calculatedTotalCost = 0;
+            }
 
             document.getElementById('summary-modal').classList.add('active');
         }
@@ -449,6 +557,7 @@ $host_id = trim($_GET['host_id'] ?? $_GET['host_uuid'] ?? '');
 
             const jobData = {
                 host_id: hostUuid,
+                token: qrToken,
                 file_path: uploadResult.file_path,
                 file_name: uploadResult.file_name,
                 file_type: uploadResult.file_type,
@@ -464,7 +573,10 @@ $host_id = trim($_GET['host_id'] ?? $_GET['host_uuid'] ?? '');
                 paper_size: document.getElementById('paper-size-select').value,
                 color_mode: document.getElementById('color-mode-select').value,
                 duplex_mode: document.getElementById('duplex-select').value,
-                user_device: /Mobile|Android|iPhone/i.test(navigator.userAgent) ? 'Mobile' : 'Desktop'
+                user_device: /Mobile|Android|iPhone/i.test(navigator.userAgent) ? 'Mobile' : 'Desktop',
+                payment_status: (hostConfig && parseInt(hostConfig.payment_enabled) === 1) ? 'PAID' : 'FREE',
+                amount_paid: (hostConfig && parseInt(hostConfig.payment_enabled) === 1) ? calculatedTotalCost : 0,
+                payment_txn_id: 'UPI-' + Date.now()
             };
 
             try {

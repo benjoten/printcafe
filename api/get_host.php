@@ -41,6 +41,31 @@ $now = time();
 $diff = abs($now - $last_seen_time);
 $is_online = ($diff <= 60);
 
+// Session token validation if token provided
+$token = trim($_GET['token'] ?? '');
+$token_valid = true;
+$token_error = '';
+
+if (!empty($token)) {
+    $s_stmt = $pdo->prepare("SELECT * FROM qr_sessions WHERE session_token = ? AND host_id = ?");
+    $s_stmt->execute([$token, $host['id']]);
+    $sess = $s_stmt->fetch();
+
+    if (!$sess) {
+        $token_valid = false;
+        $token_error = 'Invalid QR session token. Please scan the live QR code on the printer host counter.';
+    } elseif ((int)$sess['is_used'] === 1) {
+        $token_valid = false;
+        $token_error = 'This QR session URL has already been used. Please rescan the live QR code at the printer host counter.';
+    } else {
+        $expires_ts = strtotime($sess['expires_at']);
+        if ($expires_ts < time()) {
+            $token_valid = false;
+            $token_error = 'QR session expired (URLs are valid for 60 seconds only). Please rescan the live QR code at the printer host counter.';
+        }
+    }
+}
+
 // Fetch printers for this host
 $stmt = $pdo->prepare("SELECT * FROM printers WHERE host_id = ? ORDER BY is_default DESC, id ASC");
 $stmt->execute([$host['id']]);
@@ -60,6 +85,8 @@ if (!$active_printer && count($printers) > 0) {
 
 json_response([
     'success' => true,
+    'token_valid' => $token_valid,
+    'token_error' => $token_error,
     'host' => [
         'id' => $host['id'],
         'host_uuid' => $host['host_uuid'],
@@ -68,7 +95,11 @@ json_response([
         'status' => $is_online ? 'ONLINE' : 'OFFLINE',
         'last_seen' => $host['last_seen'],
         'require_approval' => (bool)$host['require_approval'],
-        'auto_delete_minutes' => $host['auto_delete_minutes']
+        'auto_delete_minutes' => $host['auto_delete_minutes'],
+        'payment_enabled' => (bool)($host['payment_enabled'] ?? 0),
+        'per_page_cost' => (float)($host['per_page_cost'] ?? 2.0),
+        'upi_id' => $host['upi_id'] ?? '',
+        'merchant_name' => !empty($host['merchant_name']) ? $host['merchant_name'] : 'Print Cafe Shop'
     ],
     'active_printer' => $active_printer,
     'printers' => $printers

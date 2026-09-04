@@ -63,17 +63,32 @@ $color_mode = trim($input['color_mode'] ?? 'color');
 $duplex_mode = trim($input['duplex_mode'] ?? 'single');
 $user_device = trim($input['user_device'] ?? 'Mobile');
 
+$payment_status = trim($input['payment_status'] ?? 'UNPAID');
+$amount_paid = (float)($input['amount_paid'] ?? 0.0);
+$payment_txn_id = trim($input['payment_txn_id'] ?? '');
+
+// Invalidate QR session token so it cannot be reused
+$token = trim($input['token'] ?? '');
+if (!empty($token)) {
+    try {
+        $u_stmt = $pdo->prepare("UPDATE qr_sessions SET is_used = 1 WHERE session_token = ?");
+        $u_stmt->execute([$token]);
+    } catch (Exception $e) {}
+}
+
 $stmt = $pdo->prepare("
     INSERT INTO print_jobs (
         job_uuid, host_id, printer_id, file_name, file_path, file_type, file_size,
         page_selection_type, page_from, page_to, custom_pages, total_pages, copies,
         orientation, scaling, margin_type, margin_top, margin_bottom, margin_left, margin_right,
-        paper_size, color_mode, duplex_mode, approval_status, status, user_device
+        paper_size, color_mode, duplex_mode, approval_status, status, user_device,
+        payment_status, amount_paid, payment_txn_id
     ) VALUES (
         :job_uuid, :host_id, :printer_id, :file_name, :file_path, :file_type, :file_size,
         :page_selection_type, :page_from, :page_to, :custom_pages, :total_pages, :copies,
         :orientation, :scaling, :margin_type, :margin_top, :margin_bottom, :margin_left, :margin_right,
-        :paper_size, :color_mode, :duplex_mode, :approval_status, :status, :user_device
+        :paper_size, :color_mode, :duplex_mode, :approval_status, :status, :user_device,
+        :payment_status, :amount_paid, :payment_txn_id
     )
 ");
 
@@ -103,7 +118,10 @@ $stmt->execute([
     ':duplex_mode' => $duplex_mode,
     ':approval_status' => $approval_status,
     ':status' => $job_status,
-    ':user_device' => $user_device
+    ':user_device' => $user_device,
+    ':payment_status' => $payment_status,
+    ':amount_paid' => $amount_paid,
+    ':payment_txn_id' => $payment_txn_id
 ]);
 
 $job_id = $pdo->lastInsertId();
