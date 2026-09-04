@@ -1,0 +1,12 @@
+# Temporary Uploads & SQLite DB binaries
+uploads/temp/*
+!uploads/temp/.gitkeep
+database/*.sqlite
+database/*.db
+
+# Python & OS Junk
+__pycache__/
+*.pyc
+.DS_Store
+Thumbs.db
+host_agent/bin/sumatra*

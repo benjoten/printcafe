@@ -1,0 +1,1583 @@
+Product Name: Print Cafe
+Product Type: Browser-Based Wireless Printing Web Application
+Platform: Windows PC + Android/iOS Mobile + Tablet + Other PCs
+Primary Use Case: QR scan → File Upload → Print through Host PC Printer
+
+1. Product Overview
+
+Print Cafe ek browser-based printing system hoga jisme kisi bhi mobile, tablet ya computer se QR Code scan karke host computer ke printer par document print kiya ja sakega.
+
+Is system mein ek computer Host PC ke roop mein kaam karega.
+
+Basic workflow
+                 ┌─────────────────────┐
+                 │     HOST PC         │
+                 │                     │
+                 │ Browser Open        │
+                 │ "Start as Host"     │
+                 │                     │
+                 │   Fixed QR Code     │
+                 └─────────┬───────────┘
+                           │
+                           │ Wi-Fi / LAN
+                           ▼
+                  ┌─────────────────┐
+                  │   QR CODE       │
+                  └────────┬────────┘
+                           │
+                    Scan from Phone
+                           │
+                           ▼
+                ┌─────────────────────┐
+                │ Mobile / Tablet / PC│
+                │                     │
+                │ Upload File         │
+                │ Print Settings      │
+                │                     │
+                │     PRINT           │
+                └──────────┬──────────┘
+                           │
+                           ▼
+                 ┌─────────────────────┐
+                 │     HOST PC         │
+                 │                     │
+                 │ Receives File       │
+                 │ Applies Settings    │
+                 │ Sends to Printer    │
+                 └──────────┬──────────┘
+                            │
+                            ▼
+                     🖨️ PRINTER
+2. Main Objective
+
+System ka main objective hai:
+
+“Kisi bhi device se QR Code scan karke bina driver install kiye host computer ke connected printer par document print karna.”
+
+User ko host PC ke paas jaane ki zarurat nahi hogi.
+
+Example:
+
+Aapke office reception par ek PC aur printer hai.
+
+Reception PC par QR Code displayed hai.
+
+Employee apne mobile se QR scan karega:
+
+Scan → Upload PDF → Select Pages → Landscape/Portrait → Margin → Scaling → Print
+
+Aur document reception ke printer se print ho jayega.
+
+3. Target Devices
+
+System responsive aur cross-device hona chahiye.
+
+Host
+Windows PC
+Windows Laptop
+Potentially macOS/Linux in future
+Client
+Android phone
+iPhone
+Android tablet
+iPad
+Windows PC
+Mac
+Laptop
+
+Client side par kisi application ko install karne ki zarurat nahi hogi.
+
+Sirf browser chahiye.
+
+Supported browsers:
+
+Chrome
+Edge
+Firefox
+Safari
+Samsung Internet
+4. Core Architecture
+
+System ko do major parts mein divide kiya jayega.
+
+A. Host
+
+Host woh computer hoga jiske saath physical printer connected/install hai.
+
+Host responsibilities:
+
+Host session start karna
+Fixed QR generate/show karna
+Printer detect karna
+Printer select karna
+Uploaded files receive karna
+Print queue manage karna
+Print settings process karna
+Printer ko print job bhejna
+Job status show karna
+B. Client
+
+Client woh device hoga jo QR scan karega.
+
+Client responsibilities:
+
+QR scan
+Upload page open
+File select/upload
+Print settings choose
+Print request submit
+Job status dekhna
+5. Important Technical Requirement
+
+Yahan ek important technical point hai.
+
+Normal browser directly host PC ke installed printers ko access/control nahi kar sakta.
+
+For example:
+
+Mobile Browser
+       ↓
+Web Server
+       ↓
+Host PC Browser
+       ↓
+Windows Printer
+
+Browser security ke wajah se webpage directly:
+
+Windows Printer → Print
+
+control nahi kar sakta.
+
+Isliye system mein Host Print Agent / Local Print Service ki zarurat hogi.
+
+Recommended architecture:
+
+                    INTERNET / LAN
+                         │
+             ┌───────────┴───────────┐
+             │                       │
+          CLIENT                   HOST
+             │                       │
+       Mobile/PC Browser       Browser Dashboard
+             │                       │
+             └───────────┬───────────┘
+                         │
+                    Web Server
+                         │
+                  Print Job Queue
+                         │
+                  Host Print Agent
+                         │
+                 Windows Print API
+                         │
+                         🖨️
+                      Printer
+Host Print Agent
+
+Windows PC par ek lightweight background application/service chalega.
+
+Example:
+
+Print Cafe Agent
+
+Iska kaam:
+
+Local printers detect karna
+Web server se print jobs receive karna
+File download karna
+Print settings apply karna
+Windows print spooler ko job dena
+Print status server ko bhejna
+
+Isse user ko printer driver manually configure nahi karna padega beyond normal Windows printer installation.
+
+6. Host Registration
+
+Host PC par browser mein application open hoga.
+
+Screen:
+
+╔══════════════════════════════════╗
+║          Print Cafe            ║
+╠══════════════════════════════════╣
+║                                  ║
+║        HOST MODE                 ║
+║                                  ║
+║   [ START AS HOST ]              ║
+║                                  ║
+╚══════════════════════════════════╝
+
+User:
+
+START AS HOST
+
+par click karega.
+
+System host ko register karega.
+
+7. Fixed QR Code
+
+Host start karne ke baad system ek unique QR Code generate karega.
+
+Example:
+
+┌──────────────────────┐
+│                      │
+│      QR CODE         │
+│                      │
+│    █ ██ ███ █        │
+│    ██ █ █  ██        │
+│    ███ ██ ███        │
+│                      │
+└──────────────────────┘
+
+HOST NAME
+Reception Printer
+
+HOST ID
+RPH-8F32A91C
+Important
+
+QR Code:
+
+Host ke liye unique hoga
+Normally change nahi hoga
+Browser refresh karne par change nahi hona chahiye
+Host restart karne par bhi same rehna chahiye
+Database mein Host ID ke saath linked rahega
+
+Example:
+
+Host ID:
+RPH-8F32A91C
+
+QR URL:
+
+https://yourdomain.com/print/RPH-8F32A91C
+8. QR Code Security
+
+QR Code fixed hone ke karan security important hai.
+
+QR mein directly printer information nahi honi chahiye.
+
+Instead:
+
+QR
+ ↓
+Host ID
+ ↓
+Server
+ ↓
+Check Host Online
+ ↓
+Print Page
+
+Host ko periodically heartbeat bhejna hoga:
+
+Host Online
+Last Seen: 12:55 PM
+
+Agar host offline hai:
+
+⚠️ Printer Host Offline
+
+Please try again later.
+9. Client QR Scan
+
+Mobile user QR scan karega.
+
+Example:
+
+QR Scan
+   ↓
+Browser opens
+   ↓
+Print Cafe
+   ↓
+Reception Printer
+
+Page:
+
+┌─────────────────────────────┐
+│       Print Cafe          │
+│                             │
+│     Reception Printer       │
+│        🟢 Online             │
+│                             │
+│  Select file to print       │
+│                             │
+│     [ Upload File ]         │
+│                             │
+└─────────────────────────────┘
+10. File Upload
+
+Recommended supported formats:
+
+Phase 1
+PDF
+JPG
+JPEG
+PNG
+Future
+DOCX
+XLSX
+PPTX
+TXT
+
+However, PDF should be the primary format because page selection, scaling and orientation control is much easier and reliable.
+
+11. File Upload UI
+╔══════════════════════════════════╗
+║          PRINT DOCUMENT          ║
+╠══════════════════════════════════╣
+║                                  ║
+║       📄                         ║
+║                                  ║
+║    Select your document          ║
+║                                  ║
+║      [ CHOOSE FILE ]             ║
+║                                  ║
+║ Supported: PDF, JPG, PNG         ║
+║ Max Size: 25 MB                  ║
+║                                  ║
+╚══════════════════════════════════╝
+
+Drag & Drop PC users ke liye bhi available ho.
+
+12. File Preview
+
+Upload ke baad preview show hona chahiye.
+
+Example:
+
+Document: Invoice.pdf
+
+Pages: 12
+Size: 2.4 MB
+
+[ Preview ]
+
+PDF ke liye thumbnails:
+
+┌──────┐ ┌──────┐ ┌──────┐
+│Page 1│ │Page 2│ │Page 3│
+│      │ │      │ │      │
+└──────┘ └──────┘ └──────┘
+13. Print Settings
+
+Client ko detailed print settings milengi.
+
+Orientation
+
+Radio buttons:
+
+○ Portrait
+○ Landscape
+
+Default:
+
+Portrait
+
+14. Page Selection
+
+User choose kar sakega:
+
+Pages:
+
+○ All Pages
+
+○ Custom Range
+
+From Page: [ 1 ]
+
+To Page:   [ 5 ]
+
+Example:
+
+PDF = 25 Pages
+
+From Page: 4
+To Page: 12
+
+System sirf:
+
+Page 4–12
+
+print karega.
+
+15. Multiple Page Selection
+
+Advanced option:
+
+Specific Pages:
+
+1,3,5,8-12
+
+System print kare:
+
+1
+3
+5
+8
+9
+10
+11
+12
+
+Ye feature optional Phase 2 mein rakha ja sakta hai.
+
+16. Copies
+
+User copies select kar sake:
+
+Copies
+
+[-] 1 [+]
+
+Example:
+
+Copies: 3
+17. Scaling
+
+Scaling options:
+
+Scaling
+
+○ Actual Size
+○ Fit to Page
+○ Fill Page
+○ Custom %
+
+          [ 100 ] %
+
+Recommended:
+
+Fit to Page
+
+Default.
+
+18. Margins
+
+Margin selection:
+
+Margins
+
+○ Default
+○ None
+○ Minimum
+○ Custom
+
+Custom:
+
+Top:     10 mm
+Bottom:  10 mm
+Left:    10 mm
+Right:   10 mm
+19. Paper Size
+
+Host printer ke supported paper sizes detect karne chahiye.
+
+Example:
+
+Paper Size
+
+▼ A4
+  A3
+  A5
+  Letter
+  Legal
+
+Default:
+
+A4
+
+20. Color
+
+Optional feature:
+
+Print Color
+
+○ Color
+○ Black & White
+
+Agar printer support karta hai tabhi relevant option active hona chahiye.
+
+21. Duplex Printing
+
+Printer support karta hai to:
+
+Duplex
+
+○ Single-sided
+○ Long-edge
+○ Short-edge
+22. Print Preview
+
+Final print se pehle:
+
+┌──────────────────────────────┐
+│         PRINT PREVIEW        │
+│                              │
+│        ┌────────────┐        │
+│        │            │        │
+│        │  Document  │        │
+│        │            │        │
+│        └────────────┘        │
+│                              │
+│ Orientation: Portrait        │
+│ Pages: 1–5                   │
+│ Copies: 1                    │
+│ Scaling: Fit to Page         │
+│ Paper: A4                    │
+│                              │
+│       [ CANCEL ]             │
+│       [ 🖨 PRINT ]           │
+└──────────────────────────────┘
+23. Print Request
+
+User:
+
+PRINT
+
+click karega.
+
+System:
+
+Uploading...
+     ↓
+Processing...
+     ↓
+Sending to Printer...
+     ↓
+Printing...
+24. Print Queue
+
+Host PC dashboard par print queue dikhegi.
+
+Example:
+
+Job	File	User	Pages	Status
+#1001	invoice.pdf	Mobile	1–5	Printing
+#1002	report.pdf	Tablet	2–10	Queued
+#1003	photo.jpg	PC	1	Completed
+25. Host Dashboard
+
+Host dashboard primary control panel hoga.
+
+╔══════════════════════════════════════════╗
+║             Print Cafe                 ║
+╠══════════════════════════════════════════╣
+║                                          ║
+║ Host: Reception Printer                  ║
+║ Status: 🟢 ONLINE                        ║
+║                                          ║
+║ Printer                                 ║
+║ ┌──────────────────────────────────────┐ ║
+║ │ HP LaserJet Pro M404                 │ ║
+║ └──────────────────────────────────────┘ ║
+║                                          ║
+║              QR CODE                     ║
+║             ███████                      ║
+║             █ QR █                       ║
+║             ███████                      ║
+║                                          ║
+║ [ Download QR ] [ Print QR ]             ║
+║                                          ║
+╠══════════════════════════════════════════╣
+║ PRINT QUEUE                              ║
+║                                          ║
+║ Invoice.pdf       Printing               ║
+║ Report.pdf        Waiting                ║
+║ Photo.jpg         Completed              ║
+╚══════════════════════════════════════════╝
+26. Printer Detection
+
+Host Agent automatically detect karega:
+
+Available Printers
+
+✓ HP LaserJet Pro M404
+✓ Canon LBP2900
+✓ Microsoft Print to PDF
+✓ Brother HL-L2321D
+
+User select karega:
+
+Default Printer:
+
+[ HP LaserJet Pro M404 ▼ ]
+27. Important Printer Rule
+
+System ko virtual printers jaise:
+
+Microsoft Print to PDF
+Microsoft XPS Document Writer
+OneNote
+
+ko optionally hide/filter karna chahiye.
+
+Host settings mein:
+
+☑ Show physical printers only
+28. Printer Status
+
+Host dashboard:
+
+Printer Status
+
+🟢 Ready
+
+Possible statuses:
+
+Ready
+Printing
+Offline
+Paper Out
+Paper Jam
+Error
+Paused
+
+Client ko appropriate status dikhaya ja sakta hai.
+
+Example:
+
+⚠️ Printer is currently offline. Please try again later.
+
+29. Print Job Status
+
+Client ko job tracking milegi.
+
+PRINT JOB #10023
+
+File:
+Invoice.pdf
+
+Pages:
+1–5
+
+Status:
+
+✓ Uploaded
+✓ Processing
+✓ Sent to Printer
+🖨 Printing
+
+Final:
+
+✅ Printing Completed
+30. Cancellation
+
+Client printing start hone se pehle:
+
+[ Cancel Print ]
+
+Host admin:
+
+[ Cancel Job ]
+
+Queued job cancel ho sakta hai.
+
+31. Authentication
+
+Normal client user ke liye account required nahi hona chahiye.
+
+QR scan:
+
+Scan → Upload → Print
+
+No login.
+
+Host ke liye however security PIN/password hona chahiye.
+
+Example:
+
+Host Settings
+
+Admin PIN:
+[ ****** ]
+32. Host Security PIN
+
+Host dashboard settings change karne ke liye:
+
+Enter Host PIN
+
+PIN protected:
+
+Printer change
+Host name change
+QR regeneration
+Delete queue
+Agent settings
+Security settings
+33. QR Regeneration
+
+Although QR fixed hona chahiye, admin ke liye optional:
+
+Regenerate QR Code
+
+Warning:
+
+Regenerating the QR code will invalidate the existing QR code.
+
+Ye security purpose ke liye useful hoga.
+
+34. Network Requirement
+Recommended
+
+Host aur client same:
+
+Wi-Fi
+LAN
+
+network par ho.
+
+Example:
+
+Office Wi-Fi
+     │
+ ┌───┼───────────────┐
+ │   │               │
+Host Phone          Tablet
+PC
+ │
+Printer
+35. Internet vs Local Network
+
+Do architecture options hain.
+
+Option A — Cloud Server
+Client
+ ↓
+Internet
+ ↓
+Cloud Server
+ ↓
+Host Agent
+ ↓
+Printer
+
+Advantages:
+
+Anywhere access
+Central management
+Multiple hosts possible
+
+Disadvantage:
+
+Internet required
+Option B — Local Network
+Mobile
+ ↓
+Wi-Fi
+ ↓
+Host PC
+ ↓
+Printer
+
+Advantages:
+
+Very fast
+No internet required
+Better privacy
+
+Disadvantage:
+
+Same network required
+Recommended Product
+
+Hybrid architecture
+
+Internet available:
+
+Cloud + Host Agent
+
+Internet unavailable:
+
+Local LAN mode
+36. Host Heartbeat
+
+Host Agent every few seconds server ko status send kare:
+
+Host ID
+Printer ID
+Printer Status
+Agent Version
+Last Seen
+
+Example:
+
+Host:
+Reception-01
+
+Status:
+ONLINE
+
+Printer:
+HP M404
+
+Printer Status:
+READY
+
+Last Seen:
+12:55:21
+37. File Security
+
+Uploaded file ko permanently store nahi karna chahiye.
+
+Recommended:
+
+Upload
+ ↓
+Temporary Storage
+ ↓
+Print
+ ↓
+Delete
+
+Example retention:
+
+Maximum 30 minutes
+
+or
+
+Delete immediately after successful print
+
+Admin logs mein file name retain ho sakta hai, actual file nahi.
+
+38. File Size Limit
+
+Initial version:
+
+Maximum 25 MB
+
+Admin configurable:
+
+Max File Size:
+[25] MB
+
+Future:
+
+50 MB / 100 MB.
+
+39. Supported File Format Strategy
+MVP
+
+PDF
+
+Version 1.1
+JPG
+PNG
+Version 2
+DOCX
+XLSX
+PPTX
+
+Office files ko internally PDF mein convert karke print karna recommended hoga.
+
+40. Error Handling
+Host Offline
+❌ Printer Host Offline
+
+This printer is currently unavailable.
+Printer Offline
+⚠️ Printer Offline
+
+Please try again later.
+Upload Error
+❌ File upload failed.
+
+Please try again.
+Unsupported File
+❌ Unsupported file type.
+
+Please upload a PDF.
+Printer Error
+❌ Printer Error
+
+Please contact the host operator.
+41. Admin Settings
+
+Host settings:
+
+HOST SETTINGS
+
+Host Name
+[ Reception Printer ]
+
+Default Printer
+[ HP LaserJet M404 ]
+
+Default Paper
+[ A4 ]
+
+Default Orientation
+[ Portrait ]
+
+Default Scaling
+[ Fit to Page ]
+
+Max File Size
+[ 25 MB ]
+
+Auto Delete Files
+[ 30 Minutes ]
+
+Allow Guest Printing
+[ ON ]
+
+Require Approval
+[ OFF ]
+42. Optional Print Approval System
+
+Ye future mein bahut useful feature ho sakta hai.
+
+Host admin setting:
+
+Print Approval
+
+○ Auto Print
+● Require Approval
+Auto Print
+
+User:
+
+Print
+
+→ directly printer.
+
+Approval Mode
+
+User:
+
+Print Request
+
+Host:
+
+New Print Request
+
+invoice.pdf
+Pages: 1–5
+Copies: 2
+
+[ APPROVE ] [ REJECT ]
+
+Approve karne ke baad print hoga.
+
+43. Print History
+
+Host dashboard:
+
+PRINT HISTORY
+
+Today
+
+10:42 AM
+Invoice.pdf
+5 pages
+Completed
+
+10:51 AM
+Report.pdf
+12 pages
+Completed
+
+11:02 AM
+Photo.jpg
+1 page
+Cancelled
+
+Filters:
+
+Today
+Yesterday
+Last 7 Days
+Custom Date
+44. Analytics
+
+Dashboard mein:
+
+TOTAL PRINTS
+1,254
+
+PAGES PRINTED
+8,421
+
+TODAY
+125
+
+FAILED
+7
+
+Charts:
+
+Daily print jobs
+Pages printed
+Printer usage
+File type
+Peak printing hours
+45. Multi-Printer Support
+
+Future version mein ek host ke multiple printers support kare.
+
+Example:
+
+HOST PC
+
+Printers:
+
+🖨 HP LaserJet
+🖨 Canon Printer
+🖨 Brother Printer
+
+Client:
+
+Select Printer
+
+[ HP LaserJet ▼ ]
+
+Host admin decide kar sakta hai:
+
+☑ Allow users to select printer
+☐ Use default printer only
+46. Multi-Host System
+
+Future SaaS architecture:
+
+Company
+   │
+   ├── Reception Printer
+   │
+   ├── Accounts Printer
+   │
+   ├── HR Printer
+   │
+   └── Admin Printer
+
+Each host has unique QR.
+
+Example:
+
+QR 1 → Reception
+QR 2 → Accounts
+QR 3 → HR
+QR 4 → Admin
+47. User Interface Structure
+Host
+/login
+/host
+/host/dashboard
+/host/printers
+/host/queue
+/host/history
+/host/settings
+Client
+/print/{host_id}
+/print/{host_id}/upload
+/print/{host_id}/settings
+/print/{host_id}/preview
+/print/{host_id}/status/{job_id}
+48. Suggested Technology Stack
+
+Aapke existing web development experience ko dekhte hue, practical stack:
+
+Frontend
+HTML5
+CSS3
+JavaScript
+Bootstrap / Tailwind CSS
+
+Responsive design mandatory.
+
+Backend
+PHP 8+
+MySQL
+REST API
+WebSocket / SSE
+Host Agent
+
+Recommended:
+
+Python
+
+or
+
+Node.js
+
+Windows Agent.
+
+PDF Processing
+
+Possible tools:
+
+PDF.js
+Ghostscript
+qpdf
+PDFium
+QR Generation
+
+Server-side:
+
+PHP QR Code library
+
+or JavaScript QR library.
+
+49. Recommended Database Structure
+hosts
+id
+host_uuid
+host_name
+host_token
+status
+last_seen
+created_at
+updated_at
+printers
+id
+host_id
+printer_name
+printer_system_name
+status
+is_default
+created_at
+print_jobs
+id
+host_id
+printer_id
+job_uuid
+file_name
+file_path
+file_type
+file_size
+page_from
+page_to
+copies
+orientation
+scaling
+margin_top
+margin_bottom
+margin_left
+margin_right
+paper_size
+color_mode
+duplex_mode
+status
+created_at
+completed_at
+print_logs
+id
+job_id
+event
+message
+created_at
+50. Print Job Status Flow
+UPLOADING
+    ↓
+UPLOADED
+    ↓
+QUEUED
+    ↓
+PROCESSING
+    ↓
+SENDING_TO_PRINTER
+    ↓
+PRINTING
+    ↓
+COMPLETED
+
+Failure:
+
+PROCESSING
+     ↓
+FAILED
+
+Cancellation:
+
+QUEUED
+  ↓
+CANCELLED
+51. API Structure
+
+Example:
+
+POST /api/host/register
+POST /api/host/heartbeat
+GET  /api/host/{id}
+GET  /api/host/{id}/printers
+
+POST /api/print/upload
+POST /api/print/create-job
+GET  /api/print/job/{id}
+POST /api/print/job/{id}/cancel
+
+GET  /api/host/{id}/queue
+GET  /api/host/{id}/history
+52. Host Agent API
+
+Agent:
+
+GET /agent/jobs
+
+Server:
+
+{
+  "job_id": "10023",
+  "file": "invoice.pdf",
+  "printer": "HP LaserJet M404",
+  "pages": "1-5",
+  "orientation": "portrait",
+  "copies": 1,
+  "scaling": "fit"
+}
+
+Agent job process karega aur status send karega.
+
+53. UI Design
+
+Design simple hona chahiye.
+
+Client
+
+Mobile-first
+
+Large buttons:
+
+📄 Upload File
+
+⚙ Print Settings
+
+👁 Preview
+
+🖨 PRINT
+Host
+
+Desktop dashboard:
+
+Sidebar
+Printer status
+QR code
+Queue
+History
+Settings
+54. Responsive Design
+
+Mobile screen:
+
+┌───────────────┐
+│ Print Cafe  │
+├───────────────┤
+│               │
+│ Upload File   │
+│               │
+│ [ SELECT ]    │
+│               │
+│ Orientation   │
+│ Portrait      │
+│               │
+│ Pages         │
+│ 1 - 5         │
+│               │
+│ [ PRINT ]     │
+└───────────────┘
+
+Tablet:
+
+Two-column layout.
+
+PC:
+
+Three-column layout:
+
+Preview | Settings | Summary
+55. MVP — First Version
+
+Development ko initially simple rakha ja sakta hai.
+
+MVP Features
+
+✅ Host registration
+✅ Fixed QR Code
+✅ QR scan
+✅ Mobile responsive client page
+✅ PDF upload
+✅ PDF preview
+✅ Page range
+✅ Portrait/Landscape
+✅ Copies
+✅ Scaling
+✅ Margins
+✅ A4 paper
+✅ Printer selection on Host
+✅ Print queue
+✅ Print status
+✅ Windows Host Agent
+✅ Automatic printing
+✅ Temporary file deletion
+✅ Basic security
+
+56. Phase 2
+
+Add:
+
+JPG/PNG
+DOCX
+XLSX
+Multiple printers
+Printer selection
+Duplex
+Color/B&W
+Advanced page selection
+Print history
+Analytics
+Approval mode
+User PIN
+QR regeneration
+57. Phase 3 — SaaS
+
+Isko commercial product bhi banaya ja sakta hai.
+
+Features:
+
+Company account
+Multiple branches
+Multiple hosts
+Multiple printers
+User management
+Admin dashboard
+Usage analytics
+Monthly print limits
+Subscription
+API
+White-label branding
+
+Example:
+
+Company Dashboard
+
+Branches: 5
+Hosts: 23
+Printers: 41
+
+Today's Print Jobs
+1,245
+
+Pages
+8,921
+58. Important Security Requirements
+
+System mein ye security mandatory honi chahiye:
+
+HTTPS
+
+Production mein HTTPS mandatory.
+
+Host Token
+
+Har host ka unique secure token.
+
+Job Token
+
+Har print job ka unique random token.
+
+File Validation
+
+File extension ke saath MIME type bhi verify karna.
+
+File Size
+
+Maximum upload limit.
+
+Auto Delete
+
+Printed files automatically delete.
+
+Rate Limiting
+
+Ek device se excessive print requests prevent karna.
+
+Example:
+
+Maximum:
+10 jobs / minute / device
+59. Privacy
+
+System ko user ke documents unnecessarily store nahi karne chahiye.
+
+Recommended:
+
+Upload
+ ↓
+Encrypted Temporary Storage
+ ↓
+Print
+ ↓
+Delete
+
+No permanent document storage by default.
+
+60. Complete User Journey
+Host
+1. Open website
+        ↓
+2. Start as Host
+        ↓
+3. Host Agent connects
+        ↓
+4. Printers detected
+        ↓
+5. Select printer
+        ↓
+6. QR generated
+        ↓
+7. Display QR
+Client
+1. Scan QR
+        ↓
+2. Print page opens
+        ↓
+3. Upload PDF
+        ↓
+4. Preview
+        ↓
+5. Select pages
+        ↓
+6. Select orientation
+        ↓
+7. Select scaling
+        ↓
+8. Select margins
+        ↓
+9. Select copies
+        ↓
+10. Print
+Host
+Print Request
+      ↓
+Queue
+      ↓
+Host Agent
+      ↓
+Windows Print Spooler
+      ↓
+Printer
+      ↓
+Completed
+61. Example Real-Life Scenario
+
+Suppose ek office mein:
+
+PC + HP Printer
+
+installed hai.
+
+PC par Print Cafe open hai.
+
+Reception desk par QR Code laga diya gaya.
+
+Visitor ke paas ek PDF hai.
+
+Visitor:
+
+QR scan karta hai
+
+↓
+
+Browser open hota hai.
+
+↓
+
+Upload PDF
+
+↓
+
+Document:
+
+Application.pdf
+
+↓
+
+Settings:
+
+Pages: 1–3
+Orientation: Portrait
+Copies: 2
+Scaling: Fit to Page
+Margin: Default
+Paper: A4
+
+↓
+
+PRINT
+
+↓
+
+Host PC ko request milti hai.
+
+↓
+
+Windows printer ko job milti hai.
+
+↓
+
+6 pages print hote hain.
+
+Visitor ko PC touch karne ki zarurat nahi.
+
+62. Most Important Technical Decision
+
+Main recommend karunga ki aap is project ko pure browser-only application na banayein.
+
+Best architecture:
+
+Web App + Host Agent
+             Print Cafe
+                   │
+          ┌────────┴────────┐
+          │                 │
+       WEB APP          HOST AGENT
+          │                 │
+          │            Windows PC
+          │                 │
+          │              Printer
+          │
+    Mobile / Tablet
+
+Browser-only architecture mein installed Windows printers ko reliably control karna possible nahi hoga.
+
+Host Agent is project ka most important component hai.
+
+63. Recommended Final Product Structure
+Print Cafe
+│
+├── Web Application
+│   ├── Host Dashboard
+│   ├── QR Generator
+│   ├── Client Print Page
+│   ├── File Upload
+│   ├── PDF Preview
+│   ├── Print Settings
+│   ├── Print Queue
+│   └── Print History
+│
+├── Backend Server
+│   ├── Authentication
+│   ├── Host Management
+│   ├── Job Management
+│   ├── File Management
+│   └── Printer Management
+│
+├── Database
+│
+└── Windows Host Agent
+    ├── Printer Detection
+    ├── Job Listener
+    ├── PDF Processing
+    ├── Print Settings
+    └── Windows Print Spooler
+Final Product Vision
+
+Aapka final system basically “AirPrint jaisa experience, lekin QR Code based” hoga:
+
+Scan QR → Upload Document → Choose Print Settings → Print
+
+Aur sabse important baat, client device par printer driver, app ya software install karne ki zarurat nahi hogi. Sirf host PC par ek lightweight Print Cafe Host Agent install/run karna padega.
