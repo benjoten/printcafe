@@ -8,6 +8,11 @@ RUN apt-get update && apt-get install -y libsqlite3-dev && \
 # Enable Apache mod_rewrite
 RUN a2enmod rewrite
 
+# Increase PHP file upload size limits to 50MB
+RUN echo "upload_max_filesize = 50M" > /usr/local/etc/php/conf.d/uploads.ini && \
+    echo "post_max_size = 50M" >> /usr/local/etc/php/conf.d/uploads.ini && \
+    echo "memory_limit = 256M" >> /usr/local/etc/php/conf.d/uploads.ini
+
 # Copy application source code
 COPY . /var/www/html/
 
