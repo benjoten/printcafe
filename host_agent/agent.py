@@ -306,10 +306,71 @@ class HostPrintAgent:
                 except Exception:
                     pass
 
+    def print_image_gdi(self, image_path, printer_name, copies=1):
+        """Print image files natively directly to Windows Printer Device Context using PyWin32 and Pillow"""
+        if not (HAS_WIN32 and HAS_PIL):
+            return False
+        try:
+            img = Image.open(image_path)
+            if img.mode != 'RGB':
+                img = img.convert('RGB')
+
+            hDC = win32ui.CreateDC()
+            hDC.CreatePrinterDC(printer_name)
+
+            printable_w = hDC.GetDeviceCaps(win32con.HORZRES)
+            printable_h = hDC.GetDeviceCaps(win32con.VERTRES)
+
+            img_w, img_h = img.size
+            aspect = img_w / float(img_h)
+
+            target_w = printable_w
+            target_h = int(printable_w / aspect)
+            if target_h > printable_h:
+                target_h = printable_h
+                target_w = int(printable_h * aspect)
+
+            x_offset = int((printable_w - target_w) / 2)
+            y_offset = int((printable_h - target_h) / 2)
+
+            doc_name = os.path.basename(image_path)
+
+            for _ in range(copies):
+                hDC.StartDoc(doc_name)
+                hDC.StartPage()
+
+                dib = ImageWin.Dib(img)
+                dib.draw(hDC.GetHandle(), (x_offset, y_offset, x_offset + target_w, y_offset + target_h))
+
+                hDC.EndPage()
+                hDC.EndDoc()
+
+            hDC.DeleteDC()
+            print(f"[Agent] Successfully spooled image to {printer_name} via GDI.")
+            return True
+        except Exception as e:
+            print(f"[Agent] GDI image print warning: {e}")
+            return False
+
     def spool_to_windows_printer(self, file_path, printer_name, copies=1):
-        """Spool print file to Windows Spooler using ShellExecute or PowerShell"""
+        """Spool print file to Windows Spooler using GDI, ShellExecute, MSPaint, or PowerShell"""
         ext = os.path.splitext(file_path)[1].lower()
 
+        # 1. Native GDI Direct Print for Images (.jpg, .jpeg, .png, .bmp)
+        if ext in [".jpg", ".jpeg", ".png", ".bmp"]:
+            if self.print_image_gdi(file_path, printer_name, copies):
+                return True
+
+            # 2. MSPaint /pt Fallback for Images
+            try:
+                print(f"[Agent] Trying MSPaint /pt printing fallback for image...")
+                for _ in range(copies):
+                    subprocess.run(["mspaint.exe", "/pt", file_path, printer_name], check=True, timeout=10)
+                return True
+            except Exception as e:
+                print(f"[Agent] MSPaint print fallback warning: {e}")
+
+        # 3. ShellExecute PrintTo (Default for PDF / registered document types)
         if HAS_WIN32 and printer_name:
             try:
                 for _ in range(copies):
@@ -318,10 +379,11 @@ class HostPrintAgent:
             except Exception as e:
                 print(f"[Agent] ShellExecute printto warning: {e}")
 
+        # 4. PowerShell PrintTo Fallback
         try:
             for _ in range(copies):
                 ps_cmd = f'Start-Process -FilePath "{file_path}" -Verb PrintTo -ArgumentList "{printer_name}" -WindowStyle Hidden'
-                subprocess.run(["powershell", "-Command", ps_cmd], check=True)
+                subprocess.run(["powershell", "-Command", ps_cmd], check=True, timeout=10)
             return True
         except Exception as e:
             print(f"[Agent] PowerShell print error: {e}")
