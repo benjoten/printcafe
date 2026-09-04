@@ -29,8 +29,7 @@ if (!in_array($status, $valid_statuses)) {
     json_response(['success' => false, 'error' => 'Invalid status transition.'], 400);
 }
 
-$now_sql = (defined('DB_TYPE') && DB_TYPE === 'mysql') ? "NOW()" : "datetime('now')";
-$completed_at_sql = ($status === 'COMPLETED' || $status === 'FAILED') ? ", completed_at = {$now_sql}" : "";
+$completed_at_sql = ($status === 'COMPLETED' || $status === 'FAILED') ? ", completed_at = CURRENT_TIMESTAMP" : "";
 $error_msg_sql = ($status === 'FAILED') ? ", error_message = :err_msg" : "";
 
 $upd_query = "UPDATE print_jobs SET status = :status {$completed_at_sql} {$error_msg_sql} WHERE id = :id";

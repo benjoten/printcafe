@@ -26,8 +26,7 @@ if (in_array($job['status'], ['COMPLETED', 'CANCELLED'])) {
     json_response(['success' => false, 'error' => 'Cannot cancel job in state: ' . $job['status']], 400);
 }
 
-$now_sql = (defined('DB_TYPE') && DB_TYPE === 'mysql') ? "NOW()" : "datetime('now')";
-$upd = $pdo->prepare("UPDATE print_jobs SET status = 'CANCELLED', completed_at = {$now_sql} WHERE id = ?");
+$upd = $pdo->prepare("UPDATE print_jobs SET status = 'CANCELLED', completed_at = CURRENT_TIMESTAMP WHERE id = ?");
 $upd->execute([$job['id']]);
 
 $log_stmt = $pdo->prepare("INSERT INTO print_logs (job_id, event, message) VALUES (?, 'CANCELLED', 'Print job cancelled by user/admin.')");

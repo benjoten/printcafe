@@ -32,9 +32,7 @@ switch ($action) {
         $auto_delete_minutes = max(1, (int)($input['auto_delete_minutes'] ?? $host['auto_delete_minutes']));
         $new_pin = !empty($input['new_pin']) ? trim($input['new_pin']) : $host['admin_pin'];
 
-        $upd_sql = (defined('DB_TYPE') && DB_TYPE === 'mysql')
-            ? "UPDATE hosts SET host_name = :name, require_approval = :req_app, auto_delete_minutes = :del_min, admin_pin = :pin, updated_at = NOW() WHERE id = :id"
-            : "UPDATE hosts SET host_name = :name, require_approval = :req_app, auto_delete_minutes = :del_min, admin_pin = :pin, updated_at = datetime('now') WHERE id = :id";
+        $upd_sql = "UPDATE hosts SET host_name = :name, require_approval = :req_app, auto_delete_minutes = :del_min, admin_pin = :pin, updated_at = CURRENT_TIMESTAMP WHERE id = :id";
 
         $upd = $pdo->prepare($upd_sql);
         $upd->execute([
@@ -65,13 +63,12 @@ switch ($action) {
         $job_id = (int)($input['job_id'] ?? 0);
         $approve = (bool)($input['approve'] ?? true);
         
-        $now_sql = (defined('DB_TYPE') && DB_TYPE === 'mysql') ? "NOW()" : "datetime('now')";
         if ($approve) {
             $upd = $pdo->prepare("UPDATE print_jobs SET approval_status = 'approved', status = 'QUEUED' WHERE id = ? AND status = 'PENDING_APPROVAL'");
             $upd->execute([$job_id]);
             $pdo->prepare("INSERT INTO print_logs (job_id, event, message) VALUES (?, 'APPROVED', 'Print job approved by host admin.')")->execute([$job_id]);
         } else {
-            $upd = $pdo->prepare("UPDATE print_jobs SET approval_status = 'rejected', status = 'CANCELLED', completed_at = {$now_sql} WHERE id = ? AND status = 'PENDING_APPROVAL'");
+            $upd = $pdo->prepare("UPDATE print_jobs SET approval_status = 'rejected', status = 'CANCELLED', completed_at = CURRENT_TIMESTAMP WHERE id = ? AND status = 'PENDING_APPROVAL'");
             $upd->execute([$job_id]);
             $pdo->prepare("INSERT INTO print_logs (job_id, event, message) VALUES (?, 'REJECTED', 'Print job rejected by host admin.')")->execute([$job_id]);
         }
@@ -81,17 +78,17 @@ switch ($action) {
 
     case 'regenerate_qr':
         $new_uuid = generate_code('RPH');
-        $now_sql = (defined('DB_TYPE') && DB_TYPE === 'mysql') ? "NOW()" : "datetime('now')";
-        $upd = $pdo->prepare("UPDATE hosts SET host_uuid = ?, updated_at = {$now_sql} WHERE id = ?");
+        $upd = $pdo->prepare("UPDATE hosts SET host_uuid = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?");
         $upd->execute([$new_uuid, $host['id']]);
 
         json_response(['success' => true, 'new_host_uuid' => $new_uuid, 'message' => 'Host QR Code regenerated. Old QR code is now invalid.']);
         break;
 
     case 'clear_queue':
-        $now_sql = (defined('DB_TYPE') && DB_TYPE === 'mysql') ? "NOW()" : "datetime('now')";
-        $upd = $pdo->prepare("UPDATE print_jobs SET status = 'CANCELLED', completed_at = {$now_sql} WHERE host_id = ? AND status IN ('QUEUED', 'PENDING_APPROVAL')");
+        $upd = $pdo->prepare("UPDATE print_jobs SET status = 'CANCELLED', completed_at = CURRENT_TIMESTAMP WHERE host_id = ? AND status IN ('QUEUED', 'PENDING_APPROVAL')");
         $upd->execute([$host['id']]);
+
+        json_response(['success' => true, 'message' => 'Print queue cleared.']);
 
         json_response(['success' => true, 'message' => 'Print queue cleared.']);
         break;

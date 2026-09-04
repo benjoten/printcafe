@@ -24,7 +24,7 @@ try {
         $host_uuid = generate_code('RPH');
         $stmt = $pdo->prepare("
             INSERT INTO hosts (host_uuid, host_name, admin_pin, status, last_seen, require_approval, auto_delete_minutes) 
-            VALUES (:host_uuid, :host_name, :admin_pin, 'ONLINE', {$now_sql}, 0, 30)
+            VALUES (:host_uuid, :host_name, :admin_pin, 'ONLINE', CURRENT_TIMESTAMP, 0, 30)
         ");
         $stmt->execute([
             ':host_uuid' => $host_uuid,
@@ -38,7 +38,7 @@ try {
         $host = $stmt->fetch();
     } else {
         // Touch last_seen
-        $stmt = $pdo->prepare("UPDATE hosts SET last_seen = {$now_sql}, status = 'ONLINE' WHERE id = ?");
+        $stmt = $pdo->prepare("UPDATE hosts SET last_seen = CURRENT_TIMESTAMP, status = 'ONLINE' WHERE id = ?");
         $stmt->execute([$host['id']]);
     }
 

@@ -344,7 +344,8 @@ function generate_code($prefix = 'RPH') {
 // Cleanup old files
 function cleanup_expired_files($pdo) {
     try {
-        if (defined('DB_TYPE') && DB_TYPE === 'mysql') {
+        $driver = $pdo->getAttribute(PDO::ATTR_DRIVER_NAME);
+        if ($driver === 'mysql') {
             $stmt = $pdo->prepare("
                 SELECT j.id, j.file_path, h.auto_delete_minutes 
                 FROM print_jobs j 

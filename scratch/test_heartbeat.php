@@ -1,19 +1,24 @@
 <?php
+$_SERVER['REQUEST_METHOD'] = 'POST';
+$json_input = json_encode([
+    'host_uuid' => 'RPH-C92E35BE',
+    'agent_version' => '1.0.0',
+    'printers' => [
+        ['name' => 'HP LaserJet 1020', 'system_name' => 'HP LaserJet 1020', 'is_virtual' => 0]
+    ]
+]);
+
+// Include config and test heartbeat logic
 require_once __DIR__ . '/../config.php';
 
 $pdo = get_db();
 
-if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-    json_response(['success' => true]);
-}
-
-$input = json_decode(file_get_contents('php://input'), true) ?? $_POST;
+$input = json_decode($json_input, true);
 $host_uuid = trim($input['host_uuid'] ?? '');
 $printers = $input['printers'] ?? [];
 $agent_version = trim($input['agent_version'] ?? '1.0.0');
 
 if (empty($host_uuid)) {
-    // If no host_uuid provided, find first host
     $stmt = $pdo->query("SELECT * FROM hosts ORDER BY id ASC LIMIT 1");
     $host = $stmt->fetch();
 } else {
@@ -23,7 +28,6 @@ if (empty($host_uuid)) {
 }
 
 if (!$host) {
-    // If specific host_uuid requested wasn't found, try getting default host and update its UUID to match agent, OR create new host
     $stmt = $pdo->query("SELECT * FROM hosts ORDER BY id ASC LIMIT 1");
     $host = $stmt->fetch();
     if ($host) {
@@ -42,11 +46,14 @@ if (!$host) {
     }
 }
 
-// Update last_seen timestamp using ANSI standard CURRENT_TIMESTAMP
+echo "Matched Host ID: " . $host['id'] . " UUID: " . $host['host_uuid'] . "\n";
+
+// Use ANSI standard CURRENT_TIMESTAMP which works on both SQLite and MySQL!
 $stmt = $pdo->prepare("UPDATE hosts SET last_seen = CURRENT_TIMESTAMP, status = 'ONLINE', updated_at = CURRENT_TIMESTAMP WHERE id = ?");
 $stmt->execute([$host['id']]);
 
-// Update printers list if supplied by agent
+echo "Updated last_seen successfully!\n";
+
 if (is_array($printers) && count($printers) > 0) {
     foreach ($printers as $p) {
         $name = trim(is_array($p) ? ($p['name'] ?? '') : $p);
@@ -55,7 +62,6 @@ if (is_array($printers) && count($printers) > 0) {
         
         if (empty($name)) continue;
 
-        // Check if printer exists
         $chk = $pdo->prepare("SELECT id FROM printers WHERE host_id = ? AND printer_system_name = ?");
         $chk->execute([$host['id'], $sys_name]);
         $existing = $chk->fetch();
@@ -70,14 +76,8 @@ if (is_array($printers) && count($printers) > 0) {
     }
 }
 
-// Clean up expired files asynchronously during heartbeat
+echo "Printers updated successfully!\n";
+
 cleanup_expired_files($pdo);
 
-json_response([
-    'success' => true,
-    'host_id' => $host['id'],
-    'host_uuid' => $host['host_uuid'],
-    'status' => 'ONLINE',
-    'require_approval' => (int)$host['require_approval'],
-    'timestamp' => date('Y-m-d H:i:s')
-]);
+echo "Heartbeat test COMPLETED SUCCESSFULLY!\n";
