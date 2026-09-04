@@ -20,7 +20,7 @@ auto_sync_windows_printers($pdo, $host['id']);
 $host_ip = gethostbyname(gethostname());
 $protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http';
 $base_url = $protocol . '://' . $_SERVER['HTTP_HOST'] . str_replace('/host/dashboard.php', '', $_SERVER['SCRIPT_NAME']);
-$qr_full_url = $base_url . '/print.php?host_id=' . $host['host_uuid'];
+$qr_full_url = $base_url . '/scan.php?host_id=' . $host['host_uuid'];
 $qr_img_src = 'https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=' . urlencode($qr_full_url);
 ?>
 <!DOCTYPE html>
@@ -78,24 +78,23 @@ $qr_img_src = 'https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=' .
                     <h3 style="font-size: 1.25rem; margin-bottom: 0.25rem;" id="display-host-name"><?= htmlspecialchars($host['host_name']) ?></h3>
                     <div style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1.25rem;">Host ID: <code id="display-host-id"><?= htmlspecialchars($host['host_uuid']) ?></code></div>
 
-                    <!-- Fixed Dynamic Session QR Code Container -->
+                    <!-- Fixed Static Counter QR Code Container -->
                     <div style="background: #fff; padding: 0.75rem; border-radius: var(--radius-md); display: inline-block; box-shadow: var(--shadow-card); margin-bottom: 0.5rem;">
                         <div id="qrcode-container" style="width:180px; height:180px; display:flex; align-items:center; justify-content:center;">
                             <img id="qr-img-element" src="<?= $qr_img_src ?>" alt="Host Live QR Code" style="width:180px; height:180px; display:block;">
                         </div>
                     </div>
 
-                    <div style="font-size: 0.8rem; color: var(--accent-emerald); font-weight: 600; margin-bottom: 0.5rem;" id="qr-timer-badge">
-                        🟢 Single-Use Counter QR (Auto-refreshes in <span id="qr-countdown">45</span>s)
+                    <div style="font-size: 0.8rem; color: var(--accent-emerald); font-weight: 600; margin-bottom: 0.5rem;">
+                        📌 Permanent Counter QR Code Tag
                     </div>
 
                     <div style="font-size: 0.75rem; color: var(--text-dim); margin-bottom: 1rem;">
-                        Scan QR code at counter • Session URLs expire after 60s
+                        Scanning creates a private 60s print link for each user
                     </div>
 
                     <div style="display: flex; gap: 0.5rem; justify-content: center;">
-                        <button class="btn btn-secondary" onclick="refreshDynamicQR()" style="font-size: 0.85rem; padding: 0.5rem 0.85rem;">🔄 Refresh QR</button>
-                        <button class="btn btn-secondary" onclick="printQRTag()" style="font-size: 0.85rem; padding: 0.5rem 0.85rem;">🖨️ Print Tag</button>
+                        <button class="btn btn-primary" onclick="printQRTag()" style="font-size: 0.85rem; padding: 0.5rem 1.25rem;">🖨️ Print Counter Tag</button>
                     </div>
                 </div>
 
@@ -257,47 +256,11 @@ $qr_img_src = 'https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=' .
     <script>
         const qrUrl = <?= json_encode($qr_full_url) ?>;
         const hostUuid = <?= json_encode($host['host_uuid']) ?>;
-        let qrCountdownSec = 45;
 
         window.addEventListener('DOMContentLoaded', () => {
             loadPrinters();
             startPolling();
-            startQRTimer();
         });
-
-        // Dynamic 45-second QR Token Refreshing
-        async function refreshDynamicQR() {
-            try {
-                const res = await fetch(`../api/generate_qr_token.php?host_id=${hostUuid}`);
-                const data = await res.json();
-                if (data.success) {
-                    const dynamicUrl = data.qr_url;
-                    const qrImgSrc = 'https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=' + encodeURIComponent(dynamicUrl);
-                    const qrImg = document.getElementById('qr-img-element');
-                    if (qrImg) qrImg.src = qrImgSrc;
-                    
-                    const printImg = document.getElementById('printable-qrcode-container')?.querySelector('img');
-                    if (printImg) printImg.src = qrImgSrc;
-
-                    qrCountdownSec = 45;
-                    const countdownEl = document.getElementById('qr-countdown');
-                    if (countdownEl) countdownEl.innerText = qrCountdownSec;
-                }
-            } catch(e) {}
-        }
-
-        function startQRTimer() {
-            refreshDynamicQR();
-            setInterval(() => {
-                qrCountdownSec--;
-                const countdownEl = document.getElementById('qr-countdown');
-                if (qrCountdownSec <= 0) {
-                    refreshDynamicQR();
-                } else if (countdownEl) {
-                    countdownEl.innerText = qrCountdownSec;
-                }
-            }, 1000);
-        }
 
         // Polling loop for queue, heartbeat, printers & history
         function startPolling() {

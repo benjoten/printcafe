@@ -2,6 +2,12 @@
 require_once __DIR__ . '/config.php';
 $host_id = trim($_GET['host_id'] ?? $_GET['host_uuid'] ?? '');
 $token = trim($_GET['token'] ?? '');
+
+// Auto-redirect to scan.php to issue a fresh 60s event token if token is missing
+if (empty($token) && !empty($host_id)) {
+    header("Location: scan.php?host_id=" . urlencode($host_id), true, 302);
+    exit;
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -60,7 +66,12 @@ $token = trim($_GET['token'] ?? '');
                     <div style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600;">TARGET PRINTER</div>
                     <div style="font-size: 1.1rem; font-weight: 700;" id="display-printer-name">Reception Printer</div>
                 </div>
-                <span class="badge-status badge-online" id="host-online-badge">🟢 Ready</span>
+                <div style="text-align: right;">
+                    <span class="badge-status badge-online" id="host-online-badge">🟢 Ready</span>
+                    <div style="font-size: 0.75rem; color: var(--accent-amber); font-weight: 600; margin-top: 0.35rem;" id="session-timer-badge">
+                        ⏱️ Session: <span id="session-countdown-sec">60</span>s
+                    </div>
+                </div>
             </div>
 
             <!-- STEP 1: Upload Document -->
@@ -327,6 +338,8 @@ $token = trim($_GET['token'] ?? '');
         let copiesCount = 1;
         let activeJobUuid = null;
         let statusPollInterval = null;
+        let sessionSec = 60;
+        let sessionTimerInterval = null;
 
         window.addEventListener('DOMContentLoaded', () => {
             checkHostStatus();
@@ -349,6 +362,7 @@ $token = trim($_GET['token'] ?? '');
                         document.getElementById('client-flow-card').style.display = 'block';
                         document.getElementById('display-printer-name').innerText = data.active_printer ? data.active_printer.printer_name : data.host.host_name;
                         document.getElementById('host-status-indicator').innerHTML = '<span class="badge-status badge-online"><span class="pulse-dot"></span> Host Online</span>';
+                        startSessionCountdownTimer();
                     } else {
                         showOfflineCard('Printer Host is offline or last seen more than 30s ago.');
                     }
@@ -360,7 +374,22 @@ $token = trim($_GET['token'] ?? '');
             }
         }
 
+        function startSessionCountdownTimer() {
+            if (sessionTimerInterval) clearInterval(sessionTimerInterval);
+            sessionSec = 60;
+            sessionTimerInterval = setInterval(() => {
+                sessionSec--;
+                const timerEl = document.getElementById('session-countdown-sec');
+                if (timerEl) timerEl.innerText = sessionSec;
+                if (sessionSec <= 0) {
+                    clearInterval(sessionTimerInterval);
+                    showTokenExpiredCard('Session time limit (60s) reached. Please rescan counter QR code.');
+                }
+            }, 1000);
+        }
+
         function showTokenExpiredCard(msg) {
+            if (sessionTimerInterval) clearInterval(sessionTimerInterval);
             document.getElementById('host-offline-card').style.display = 'none';
             document.getElementById('client-flow-card').style.display = 'none';
             document.getElementById('token-expired-card').style.display = 'block';
