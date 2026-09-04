@@ -43,9 +43,10 @@ try {
         }
     }
 
-    // Update last_seen timestamp using ANSI standard CURRENT_TIMESTAMP
-    $stmt = $pdo->prepare("UPDATE hosts SET last_seen = CURRENT_TIMESTAMP, status = 'ONLINE', updated_at = CURRENT_TIMESTAMP WHERE id = ?");
-    $stmt->execute([$host['id']]);
+    // Update last_seen timestamp with timezone-aware PHP timestamp
+    $now_str = date('Y-m-d H:i:s');
+    $stmt = $pdo->prepare("UPDATE hosts SET last_seen = ?, status = 'ONLINE', updated_at = ? WHERE id = ?");
+    $stmt->execute([$now_str, $now_str, $host['id']]);
 
     // Update printers list if supplied by agent
     if (is_array($printers) && count($printers) > 0) {

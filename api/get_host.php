@@ -35,10 +35,11 @@ if (!$host) {
 // Auto-sync Windows local printers if table is empty
 auto_sync_windows_printers($pdo, $host['id']);
 
-// Calculate online status based on 45s heartbeat threshold
+// Calculate online status based on 60s heartbeat threshold
 $last_seen_time = strtotime($host['last_seen']);
 $now = time();
-$is_online = ($now - $last_seen_time) <= 45; // 45 seconds grace period
+$diff = abs($now - $last_seen_time);
+$is_online = ($diff <= 60);
 
 // Fetch printers for this host
 $stmt = $pdo->prepare("SELECT * FROM printers WHERE host_id = ? ORDER BY is_default DESC, id ASC");
