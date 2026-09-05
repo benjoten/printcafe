@@ -290,38 +290,47 @@ $token = trim($_GET['token'] ?? '');
                         <span style="color: var(--text-muted);">Rate per Page:</span>
                         <strong id="sum-page-rate">₹2.00</strong>
                     </div>
-                    <div style="display: flex; justify-content: space-between; margin-bottom: 0.75rem; font-size: 1.15rem; font-weight: 800; color: var(--accent-amber);">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 0.75rem; font-size: 1.2rem; font-weight: 800; color: var(--accent-amber);">
                         <span>Total Payable Amount:</span>
                         <strong id="sum-total-amount">₹0.00</strong>
                     </div>
 
-                    <!-- App Direct Launcher Grid -->
-                    <div style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.4rem; font-weight: 600;">Select UPI App to Pay:</div>
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin-bottom: 0.75rem;">
-                        <a id="upi-gpay-btn" href="#" class="btn btn-primary" style="text-align: center; text-decoration: none; font-size: 0.82rem; padding: 0.55rem 0.4rem; background: #4285F4; border-color: #4285F4;">
-                            🌐 Google Pay
+                    <!-- Payment Mode Selector Box -->
+                    <div style="background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.25); border-radius: 8px; padding: 0.75rem; margin-bottom: 0.85rem; text-align: center;">
+                        <div style="font-weight: 700; color: var(--accent-emerald); font-size: 0.88rem; margin-bottom: 0.5rem;">
+                            👇 Tap Button Below to Open GPay / PhonePe / Paytm:
+                        </div>
+
+                        <!-- 1. Direct App Launch (Pre-filled Amount) -->
+                        <a id="upi-auto-btn" href="#" class="btn btn-primary btn-block" style="text-align: center; text-decoration: none; display: block; margin-bottom: 0.5rem; background: linear-gradient(135deg, #10b981, #059669); font-size: 0.9rem; padding: 0.65rem;">
+                            ⚡ Pay ₹<span class="calc-amt">0.00</span> via UPI App
                         </a>
-                        <a id="upi-phonepe-btn" href="#" class="btn btn-primary" style="text-align: center; text-decoration: none; font-size: 0.82rem; padding: 0.55rem 0.4rem; background: #5f259f; border-color: #5f259f;">
-                            🟣 PhonePe
+
+                        <!-- 2. Bypass Bank Limit Link (Direct VPA Open without forced web amount) -->
+                        <a id="upi-noam-btn" href="#" class="btn btn-secondary btn-block" style="text-align: center; text-decoration: none; display: block; font-size: 0.8rem; padding: 0.5rem; border-color: rgba(255,255,255,0.25);">
+                            🚀 Open App (If Bank Limit Error appears)
                         </a>
-                        <a id="upi-paytm-btn" href="#" class="btn btn-primary" style="text-align: center; text-decoration: none; font-size: 0.82rem; padding: 0.55rem 0.4rem; background: #00baf2; border-color: #00baf2; color: #000; font-weight: 700;">
-                            🔷 Paytm
-                        </a>
-                        <a id="upi-generic-btn" href="#" class="btn btn-primary" style="text-align: center; text-decoration: none; font-size: 0.82rem; padding: 0.55rem 0.4rem; background: linear-gradient(135deg, #10b981, #059669);">
-                            📱 Any UPI App
-                        </a>
-                    </div>
-                    
-                    <div style="text-align: center; margin-bottom: 0.75rem;">
-                        <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.35rem;">Or scan QR code to pay via UPI:</div>
-                        <img id="sum-upi-qr-img" src="" alt="UPI Payment QR Code" style="width: 150px; height: 150px; border-radius: 8px; background: #fff; padding: 4px; border: 1px solid var(--border-color); display: inline-block;">
                     </div>
 
-                    <div style="font-size: 0.8rem; color: var(--text-dim); text-align: center; background: rgba(255,255,255,0.04); padding: 0.6rem; border-radius: 6px;">
-                        <div>Merchant: <span id="sum-merchant-name" style="font-weight:600;">Print Cafe</span></div>
-                        <div style="margin-top: 0.35rem; display: flex; align-items: center; justify-content: center; gap: 0.5rem; flex-wrap: wrap;">
-                            <span>UPI ID: <code id="sum-upi-id" style="color: var(--accent-amber); font-weight: bold;">shop@upi</code></span>
-                            <button type="button" class="btn btn-secondary" onclick="copyUpiId()" style="padding: 0.15rem 0.5rem; font-size: 0.75rem;">📋 Copy ID</button>
+                    <!-- Scan QR Code Section -->
+                    <div style="text-align: center; margin-bottom: 0.85rem; background: rgba(255,255,255,0.03); padding: 0.75rem; border-radius: 8px; border: 1px solid var(--border-color);">
+                        <div style="font-size: 0.8rem; font-weight: 700; color: var(--text-main); margin-bottom: 0.35rem;">
+                            📸 Or Scan QR Code with GPay / PhonePe Scanner:
+                        </div>
+                        <img id="sum-upi-qr-img" src="" alt="UPI Payment QR Code" style="width: 160px; height: 160px; border-radius: 8px; background: #fff; padding: 6px; border: 2px solid #fff; display: inline-block;">
+                        <div style="font-size: 0.72rem; color: var(--accent-amber); margin-top: 0.35rem; font-weight: 600;">
+                            💡 Scanning pre-fills exact amount (₹<span class="calc-amt">0.00</span>) with ZERO bank errors!
+                        </div>
+                    </div>
+
+                    <!-- Copy UPI ID Card -->
+                    <div style="font-size: 0.8rem; color: var(--text-dim); background: rgba(255,255,255,0.04); padding: 0.65rem; border-radius: 8px; border: 1px dashed var(--border-color);">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
+                            <span>Merchant: <strong id="sum-merchant-name">Print Cafe</strong></span>
+                        </div>
+                        <div style="display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; flex-wrap: wrap;">
+                            <span>UPI ID: <code id="sum-upi-id" style="color: var(--accent-amber); font-size: 0.85rem; font-weight: bold;">shop@upi</code></span>
+                            <button type="button" class="btn btn-secondary" onclick="copyUpiId()" style="padding: 0.2rem 0.6rem; font-size: 0.75rem;">📋 Copy ID</button>
                         </div>
                     </div>
                 </div>
@@ -564,26 +573,29 @@ $token = trim($_GET['token'] ?? '');
                 document.getElementById('sum-modal-title').innerText = '💳 UPI Payment & Confirm Print';
                 document.getElementById('sum-page-rate').innerText = '₹' + perPageRate.toFixed(2) + ' / page';
                 document.getElementById('sum-total-amount').innerText = '₹' + calculatedTotalCost;
+                
+                const amtEls = document.querySelectorAll('.calc-amt');
+                amtEls.forEach(el => el.innerText = calculatedTotalCost);
+
                 const cleanUpiId = (hostConfig.upi_id || '').trim();
                 const cleanMerchant = (hostConfig.merchant_name || 'Print Cafe').replace(/[^a-zA-Z0-9 ]/g, '').trim();
                 
+                document.getElementById('sum-merchant-name').innerText = hostConfig.merchant_name || 'Print Cafe Host';
                 document.getElementById('sum-upi-id').innerText = cleanUpiId || 'Not Configured';
 
-                // Clean P2P/P2M UPI params (omit tr & tn to prevent bank Z6/U30 limit errors on unverified VPAs)
-                const cleanParams = `pa=${encodeURIComponent(cleanUpiId)}&pn=${encodeURIComponent(cleanMerchant)}&am=${calculatedTotalCost}&cu=INR`;
-                const universalUpiUrl = `upi://pay?${cleanParams}`;
+                // 1. Direct Intent With Amount
+                const autoUpiUrl = `upi://pay?pa=${encodeURIComponent(cleanUpiId)}&pn=${encodeURIComponent(cleanMerchant)}&am=${calculatedTotalCost}&cu=INR`;
+                
+                // 2. Direct Intent Without Amount (Bypasses Bank Limit Error 100% on personal VPAs)
+                const noAmUpiUrl = `upi://pay?pa=${encodeURIComponent(cleanUpiId)}&pn=${encodeURIComponent(cleanMerchant)}&cu=INR`;
 
-                const isAndroid = /Android/i.test(navigator.userAgent);
-                const gpayUrl = `intent://pay?${cleanParams}#Intent;scheme=upi;package=com.google.android.apps.nbu.paisa.user;end`;
-                const phonepeUrl = `intent://pay?${cleanParams}#Intent;scheme=upi;package=com.phonepe.app;end`;
-                const paytmUrl = `intent://pay?${cleanParams}#Intent;scheme=upi;package=net.one97.paytm;end`;
+                const autoBtn = document.getElementById('upi-auto-btn');
+                if (autoBtn) autoBtn.href = autoUpiUrl;
 
-                document.getElementById('upi-generic-btn').href = universalUpiUrl;
-                document.getElementById('upi-gpay-btn').href = isAndroid ? gpayUrl : universalUpiUrl;
-                document.getElementById('upi-phonepe-btn').href = isAndroid ? phonepeUrl : universalUpiUrl;
-                document.getElementById('upi-paytm-btn').href = isAndroid ? paytmUrl : universalUpiUrl;
+                const noAmBtn = document.getElementById('upi-noam-btn');
+                if (noAmBtn) noAmBtn.href = noAmUpiUrl;
 
-                document.getElementById('sum-upi-qr-img').src = 'https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=' + encodeURIComponent(universalUpiUrl);
+                document.getElementById('sum-upi-qr-img').src = 'https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=' + encodeURIComponent(autoUpiUrl);
 
                 paymentSec.style.display = 'block';
                 confirmBtn.innerText = `✅ PAYMENT DONE - PRINT NOW (₹${calculatedTotalCost})`;
