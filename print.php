@@ -295,31 +295,36 @@ $token = trim($_GET['token'] ?? '');
                         <strong id="sum-total-amount">₹0.00</strong>
                     </div>
 
-                    <!-- Payment Mode Selector Box -->
-                    <div style="background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.25); border-radius: 8px; padding: 0.75rem; margin-bottom: 0.85rem; text-align: center;">
-                        <div style="font-weight: 700; color: var(--accent-emerald); font-size: 0.88rem; margin-bottom: 0.5rem;">
-                            👇 Tap Button Below to Open GPay / PhonePe / Paytm:
-                        </div>
-
-                        <!-- 1. Direct App Launch (Pre-filled Amount) -->
-                        <a id="upi-auto-btn" href="#" class="btn btn-primary btn-block" style="text-align: center; text-decoration: none; display: block; margin-bottom: 0.5rem; background: linear-gradient(135deg, #10b981, #059669); font-size: 0.9rem; padding: 0.65rem;">
-                            ⚡ Pay ₹<span class="calc-amt">0.00</span> via UPI App
+                    <!-- Payment App Launch Grid -->
+                    <div style="font-size: 0.82rem; color: var(--text-muted); margin-bottom: 0.4rem; font-weight: 600;">1. Tap Your UPI App to Pay:</div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin-bottom: 0.65rem;">
+                        <a id="upi-phonepe-btn" href="#" class="btn btn-primary" style="text-align: center; text-decoration: none; font-size: 0.85rem; padding: 0.6rem 0.4rem; background: #5f259f; border-color: #5f259f;">
+                            🟣 PhonePe
                         </a>
-
-                        <!-- 2. Bypass Bank Limit Link (Direct VPA Open without forced web amount) -->
-                        <a id="upi-noam-btn" href="#" class="btn btn-secondary btn-block" style="text-align: center; text-decoration: none; display: block; font-size: 0.8rem; padding: 0.5rem; border-color: rgba(255,255,255,0.25);">
-                            🚀 Open App (If Bank Limit Error appears)
+                        <a id="upi-gpay-btn" href="#" class="btn btn-primary" style="text-align: center; text-decoration: none; font-size: 0.85rem; padding: 0.6rem 0.4rem; background: #4285F4; border-color: #4285F4;">
+                            🌐 Google Pay
+                        </a>
+                        <a id="upi-paytm-btn" href="#" class="btn btn-primary" style="text-align: center; text-decoration: none; font-size: 0.85rem; padding: 0.6rem 0.4rem; background: #00baf2; border-color: #00baf2; color: #000; font-weight: 700;">
+                            🔷 Paytm
+                        </a>
+                        <a id="upi-auto-btn" href="#" class="btn btn-primary" style="text-align: center; text-decoration: none; font-size: 0.85rem; padding: 0.6rem 0.4rem; background: linear-gradient(135deg, #10b981, #059669);">
+                            📱 Any UPI App
                         </a>
                     </div>
 
+                    <!-- Direct Open without forced web amount (Bank Limit Bypass) -->
+                    <a id="upi-noam-btn" href="#" class="btn btn-secondary btn-block" style="text-align: center; text-decoration: none; display: block; font-size: 0.8rem; padding: 0.5rem; margin-bottom: 0.85rem; border-color: rgba(255,255,255,0.25);">
+                        🚀 Open App directly (If Bank Limit Error appears)
+                    </a>
+
                     <!-- Scan QR Code Section -->
                     <div style="text-align: center; margin-bottom: 0.85rem; background: rgba(255,255,255,0.03); padding: 0.75rem; border-radius: 8px; border: 1px solid var(--border-color);">
-                        <div style="font-size: 0.8rem; font-weight: 700; color: var(--text-main); margin-bottom: 0.35rem;">
-                            📸 Or Scan QR Code with GPay / PhonePe Scanner:
+                        <div style="font-size: 0.82rem; font-weight: 700; color: var(--text-main); margin-bottom: 0.35rem;">
+                            📸 Or Scan QR Code with PhonePe / GPay Scanner:
                         </div>
                         <img id="sum-upi-qr-img" src="" alt="UPI Payment QR Code" style="width: 160px; height: 160px; border-radius: 8px; background: #fff; padding: 6px; border: 2px solid #fff; display: inline-block;">
-                        <div style="font-size: 0.72rem; color: var(--accent-amber); margin-top: 0.35rem; font-weight: 600;">
-                            💡 Scanning pre-fills exact amount (₹<span class="calc-amt">0.00</span>) with ZERO bank errors!
+                        <div style="font-size: 0.73rem; color: var(--accent-amber); margin-top: 0.35rem; font-weight: 600;">
+                            💡 Scanning pre-fills ₹<span class="calc-amt">0.00</span> with ZERO bank errors!
                         </div>
                     </div>
 
@@ -583,17 +588,33 @@ $token = trim($_GET['token'] ?? '');
                 document.getElementById('sum-merchant-name').innerText = hostConfig.merchant_name || 'Print Cafe Host';
                 document.getElementById('sum-upi-id').innerText = cleanUpiId || 'Not Configured';
 
-                // 1. Direct Intent With Amount
-                const autoUpiUrl = `upi://pay?pa=${encodeURIComponent(cleanUpiId)}&pn=${encodeURIComponent(cleanMerchant)}&am=${calculatedTotalCost}&cu=INR`;
+                // Merchant Category Code mc=5999 (Specialty Retail & Printing Services for PhonePe Business & GPay Merchant accounts)
+                const cleanParams = `pa=${encodeURIComponent(cleanUpiId)}&pn=${encodeURIComponent(cleanMerchant)}&mc=5999&am=${calculatedTotalCost}&cu=INR`;
+                const autoUpiUrl = `upi://pay?${cleanParams}`;
                 
-                // 2. Direct Intent Without Amount (Bypasses Bank Limit Error 100% on personal VPAs)
-                const noAmUpiUrl = `upi://pay?pa=${encodeURIComponent(cleanUpiId)}&pn=${encodeURIComponent(cleanMerchant)}&cu=INR`;
+                // Direct Intent Without forced web amount (Bypasses Bank Limit Error 100% for personal & unverified VPAs)
+                const noAmParams = `pa=${encodeURIComponent(cleanUpiId)}&pn=${encodeURIComponent(cleanMerchant)}&mc=5999&cu=INR`;
+                const noAmUpiUrl = `upi://pay?${noAmParams}`;
+
+                const isAndroid = /Android/i.test(navigator.userAgent);
+                const phonepeUrl = `intent://pay?${cleanParams}#Intent;scheme=upi;package=com.phonepe.app;end`;
+                const gpayUrl = `intent://pay?${cleanParams}#Intent;scheme=upi;package=com.google.android.apps.nbu.paisa.user;end`;
+                const paytmUrl = `intent://pay?${cleanParams}#Intent;scheme=upi;package=net.one97.paytm;end`;
 
                 const autoBtn = document.getElementById('upi-auto-btn');
                 if (autoBtn) autoBtn.href = autoUpiUrl;
 
                 const noAmBtn = document.getElementById('upi-noam-btn');
                 if (noAmBtn) noAmBtn.href = noAmUpiUrl;
+
+                const phonepeBtn = document.getElementById('upi-phonepe-btn');
+                if (phonepeBtn) phonepeBtn.href = isAndroid ? phonepeUrl : autoUpiUrl;
+
+                const gpayBtn = document.getElementById('upi-gpay-btn');
+                if (gpayBtn) gpayBtn.href = isAndroid ? gpayUrl : autoUpiUrl;
+
+                const paytmBtn = document.getElementById('upi-paytm-btn');
+                if (paytmBtn) paytmBtn.href = isAndroid ? paytmUrl : autoUpiUrl;
 
                 document.getElementById('sum-upi-qr-img').src = 'https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=' + encodeURIComponent(autoUpiUrl);
 
