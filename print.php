@@ -304,8 +304,12 @@ $token = trim($_GET['token'] ?? '');
                         <img id="sum-upi-qr-img" src="" alt="UPI Payment QR Code" style="width: 150px; height: 150px; border-radius: 8px; background: #fff; padding: 4px; border: 1px solid var(--border-color); display: inline-block;">
                     </div>
 
-                    <div style="font-size: 0.75rem; color: var(--text-dim); text-align: center;">
-                        Merchant: <span id="sum-merchant-name">Print Cafe</span> • UPI ID: <code id="sum-upi-id">shop@upi</code>
+                    <div style="font-size: 0.8rem; color: var(--text-dim); text-align: center; background: rgba(255,255,255,0.04); padding: 0.5rem; border-radius: 6px;">
+                        <div>Merchant: <span id="sum-merchant-name" style="font-weight:600;">Print Cafe</span></div>
+                        <div style="margin-top: 0.25rem; display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
+                            <span>UPI ID: <code id="sum-upi-id">shop@upi</code></span>
+                            <button type="button" class="btn btn-secondary" onclick="copyUpiId()" style="padding: 0.15rem 0.5rem; font-size: 0.75rem;">📋 Copy ID</button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -547,12 +551,13 @@ $token = trim($_GET['token'] ?? '');
                 document.getElementById('sum-modal-title').innerText = '💳 UPI Payment & Confirm Print';
                 document.getElementById('sum-page-rate').innerText = '₹' + perPageRate.toFixed(2) + ' / page';
                 document.getElementById('sum-total-amount').innerText = '₹' + calculatedTotalCost;
-                document.getElementById('sum-merchant-name').innerText = hostConfig.merchant_name || 'Print Cafe Host';
-                document.getElementById('sum-upi-id').innerText = hostConfig.upi_id || 'Not Configured';
+                const cleanUpiId = (hostConfig.upi_id || '').trim();
+                const cleanMerchant = (hostConfig.merchant_name || 'Print Cafe').replace(/[^a-zA-Z0-9 ]/g, '').trim();
+                
+                document.getElementById('sum-upi-id').innerText = cleanUpiId || 'Not Configured';
 
-                const upiId = hostConfig.upi_id || 'shop@upi';
-                const merchantName = encodeURIComponent(hostConfig.merchant_name || 'Print Cafe');
-                const upiIntentUrl = `upi://pay?pa=${upiId}&pn=${merchantName}&am=${calculatedTotalCost}&cu=INR&tn=Print_${encodeURIComponent(activeFile.name)}`;
+                // Standard NPCI Compliant UPI Intent Link (clean tn and tr to pass bank security checks)
+                const upiIntentUrl = `upi://pay?pa=${encodeURIComponent(cleanUpiId)}&pn=${encodeURIComponent(cleanMerchant)}&am=${calculatedTotalCost}&cu=INR&tn=PrintServices&tr=PC${Date.now()}`;
 
                 const upiBtn = document.getElementById('sum-upi-btn');
                 upiBtn.href = upiIntentUrl;
@@ -571,6 +576,23 @@ $token = trim($_GET['token'] ?? '');
             }
 
             document.getElementById('summary-modal').classList.add('active');
+        }
+
+        function copyUpiId() {
+            const upiId = document.getElementById('sum-upi-id').innerText;
+            if (!upiId || upiId === 'Not Configured') {
+                alert('No Merchant UPI ID configured by host admin.');
+                return;
+            }
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(upiId).then(() => {
+                    alert('📋 UPI ID (' + upiId + ') copied to clipboard!\n\nOpen GPay, PhonePe, or Paytm and paste to pay.');
+                }).catch(() => {
+                    prompt('Copy UPI ID:', upiId);
+                });
+            } else {
+                prompt('Copy UPI ID:', upiId);
+            }
         }
 
         function closeSummaryModal() { document.getElementById('summary-modal').classList.remove('active'); }

@@ -232,7 +232,10 @@ $qr_img_src = 'https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=' .
                     </div>
                     <div class="form-group">
                         <label class="form-label">Merchant UPI ID</label>
-                        <input type="text" id="setting-upi-id" class="form-control" placeholder="e.g. shopname@upi" value="<?= htmlspecialchars($host['upi_id'] ?? '') ?>">
+                        <input type="text" id="setting-upi-id" class="form-control" placeholder="e.g. 9876543210@paytm or shopname@okaxis" value="<?= htmlspecialchars($host['upi_id'] ?? '') ?>">
+                        <div style="font-size: 0.72rem; color: var(--text-muted); margin-top: 0.25rem;">
+                            ⚠️ Enter your real active UPI VPA (GPay/PhonePe/Paytm). Dummy IDs like 'shop@upi' are rejected by NPCI/banks.
+                        </div>
                     </div>
                     <div class="form-group" style="margin-bottom: 0;">
                         <label class="form-label">Merchant / Business Name</label>
